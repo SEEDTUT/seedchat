@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { AI_USER_ID } from './utils/ai.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DB_PATH || join(__dirname, '..', 'data', 'seedchat.db');
@@ -63,5 +64,48 @@ export function initDB() {
     db.prepare('UPDATE seedchat_users SET uid = ? WHERE id = ?').run(nextUid++, u.id);
   }
 
+  // 种子 Open Seed AI 用户
+  seedAIUser();
+
   console.log('Database initialized with migrations');
+}
+
+// 创建 Open Seed AI 用户并为所有现有用户自动添加互关
+function seedAIUser() {
+  const existing = db.prepare('SELECT id FROM seedchat_users WHERE id = ?').get(AI_USER_ID);
+  if (!existing) {
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO seedchat_users (id, username, password_hash, nickname, avatar, is_admin, token, uid, created_at, last_active)
+       VALUES (?, ?, '', ?, ?, 0, '', 0, ?, ?)`
+    ).run(
+      AI_USER_ID,
+      'open-seed',
+      'Open Seed',
+      '/open-seed-avatar.jpg',
+      now,
+      now
+    );
+    console.log('Open Seed AI user created');
+  }
+
+  // 为所有现有用户自动添加与 AI 的互关（如果尚未存在）
+  const allUsers = db.prepare('SELECT id FROM seedchat_users WHERE id != ?').all(AI_USER_ID);
+  const now = new Date().toISOString();
+  const insertFriend = db.prepare(
+    `INSERT INTO seedchat_friendships (id, follower_id, followee_id, created_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT (follower_id, followee_id) DO NOTHING`
+  );
+  let added = 0;
+  for (const u of allUsers) {
+    // 用户关注 AI
+    const r1 = insertFriend.run(crypto.randomUUID(), u.id, AI_USER_ID, now);
+    // AI 关注用户
+    const r2 = insertFriend.run(crypto.randomUUID(), AI_USER_ID, u.id, now);
+    if (r1.changes > 0 || r2.changes > 0) added++;
+  }
+  if (added > 0) {
+    console.log(`Auto-friended Open Seed with ${added} users`);
+  }
 }

@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import { db } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { isOnline } from '../utils/online.js';
+import { AI_USER_ID } from '../utils/ai.js';
 
 const app = new Hono();
 
@@ -93,6 +94,19 @@ app.post('/register', async (c) => {
       `INSERT INTO seedchat_users (id, username, password_hash, nickname, is_admin, token, uid, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(id, username, passwordHash, nickname || null, isAdmin, token, uid, createdAt);
+
+    // 自动与 Open Seed AI 建立互关
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO seedchat_friendships (id, follower_id, followee_id, created_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT (follower_id, followee_id) DO NOTHING`
+    ).run(crypto.randomUUID(), id, AI_USER_ID, now);
+    db.prepare(
+      `INSERT INTO seedchat_friendships (id, follower_id, followee_id, created_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT (follower_id, followee_id) DO NOTHING`
+    ).run(crypto.randomUUID(), AI_USER_ID, id, now);
 
     return c.json({
       id,

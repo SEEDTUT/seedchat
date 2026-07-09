@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { withActiveNameplate, withActiveNameplateArray } from '../utils/nameplate.js';
 import { withOnlineStatusArray, isOnline } from '../utils/online.js';
+import { AI_USER_ID } from '../utils/ai.js';
 
 const app = new Hono();
 
@@ -80,7 +81,7 @@ app.get('/users', (c) => {
         is_friend: !!rest.is_friend,
         is_mutual: !!rest.is_mutual,
         is_blocked: !!rest.is_blocked,
-        is_online: isOnline(rest.last_active),
+        is_online: isOnline(rest.last_active, rest.id),
       };
     });
 

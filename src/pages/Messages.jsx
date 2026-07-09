@@ -210,7 +210,13 @@ export default function Messages() {
         content: text,
         type: 'text',
       });
-      setMessages((prev) => [...prev, newMsg]);
+      setMessages((prev) => {
+        // 如果有 AI 回复，同时添加用户消息和 AI 回复
+        if (newMsg.ai_reply) {
+          return [...prev, newMsg, newMsg.ai_reply];
+        }
+        return [...prev, newMsg];
+      });
       if (newMsg.created_at > lastTimestampRef.current) {
         lastTimestampRef.current = newMsg.created_at;
       }

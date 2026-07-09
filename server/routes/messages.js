@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { withActiveNameplateArray } from '../utils/nameplate.js';
 import { withOnlineStatusArray, isOnline } from '../utils/online.js';
+import { AI_USER_ID, callGroq } from '../utils/ai.js';
 
 const app = new Hono();
 
@@ -198,38 +199,42 @@ app.post('/:userId', async (c) => {
     }
 
     const msgType = type || 'text';
+    const isAIMessage = receiverId === AI_USER_ID;
 
-    // 拉黑检查：接收方拉黑了发送方
-    const receiverBlockedSender = db.prepare(
-      'SELECT id FROM seedchat_blocks WHERE blocker_id = ? AND blocked_id = ?'
-    ).get(receiverId, user.id);
-    if (receiverBlockedSender) {
-      return c.json({ error: '消息发送失败' }, 403);
-    }
-
-    // 拉黑检查：发送方拉黑了接收方
-    const senderBlockedReceiver = db.prepare(
-      'SELECT id FROM seedchat_blocks WHERE blocker_id = ? AND blocked_id = ?'
-    ).get(user.id, receiverId);
-    if (senderBlockedReceiver) {
-      return c.json({ error: '你已拉黑该用户' }, 403);
-    }
-
-    // 单条消息限制：检查是否互相关注（接收方是否关注了发送方）
-    const mutual = db.prepare(
-      'SELECT COUNT(*) as count FROM seedchat_friendships WHERE follower_id = ? AND followee_id = ?'
-    ).get(receiverId, user.id);
-
-    if (!mutual.count) {
-      // 非互相关注，检查发送方是否已有任何消息发给接收方
-      const existingMsg = db.prepare(
-        'SELECT COUNT(*) as count FROM seedchat_messages WHERE sender_id = ? AND receiver_id = ?'
-      ).get(user.id, receiverId);
-
-      if (existingMsg.count > 0) {
-        return c.json({ error: '对方还未关注你，你只能发送一条消息', code: 'SINGLE_MESSAGE_LIMIT' }, 403);
+    // AI 消息跳过拉黑检查和单条消息限制
+    if (!isAIMessage) {
+      // 拉黑检查：接收方拉黑了发送方
+      const receiverBlockedSender = db.prepare(
+        'SELECT id FROM seedchat_blocks WHERE blocker_id = ? AND blocked_id = ?'
+      ).get(receiverId, user.id);
+      if (receiverBlockedSender) {
+        return c.json({ error: '消息发送失败' }, 403);
       }
-      // 第一条消息，允许发送
+
+      // 拉黑检查：发送方拉黑了接收方
+      const senderBlockedReceiver = db.prepare(
+        'SELECT id FROM seedchat_blocks WHERE blocker_id = ? AND blocked_id = ?'
+      ).get(user.id, receiverId);
+      if (senderBlockedReceiver) {
+        return c.json({ error: '你已拉黑该用户' }, 403);
+      }
+
+      // 单条消息限制：检查是否互相关注（接收方是否关注了发送方）
+      const mutual = db.prepare(
+        'SELECT COUNT(*) as count FROM seedchat_friendships WHERE follower_id = ? AND followee_id = ?'
+      ).get(receiverId, user.id);
+
+      if (!mutual.count) {
+        // 非互相关注，检查发送方是否已有任何消息发给接收方
+        const existingMsg = db.prepare(
+          'SELECT COUNT(*) as count FROM seedchat_messages WHERE sender_id = ? AND receiver_id = ?'
+        ).get(user.id, receiverId);
+
+        if (existingMsg.count > 0) {
+          return c.json({ error: '对方还未关注你，你只能发送一条消息', code: 'SINGLE_MESSAGE_LIMIT' }, 403);
+        }
+        // 第一条消息，允许发送
+      }
     }
 
     const id = crypto.randomUUID();
@@ -240,13 +245,63 @@ app.post('/:userId', async (c) => {
        VALUES (?, ?, ?, ?, ?, 0, ?)`
     ).run(id, user.id, receiverId, content, msgType, createdAt);
 
-    // 为接收方创建通知
-    const preview = msgType === 'text' ? content : (msgType === 'image' ? '[图片]' : '[视频]');
-    const notifId = crypto.randomUUID();
-    db.prepare(
-      `INSERT INTO seedchat_notifications (id, user_id, type, from_user_id, from_username, from_avatar, content, is_read, created_at)
-       VALUES (?, ?, 'message', ?, ?, ?, ?, 0, ?)`
-    ).run(notifId, receiverId, user.id, user.username, user.avatar, preview, createdAt);
+    // 非 AI 接收方创建通知
+    if (!isAIMessage) {
+      const preview = msgType === 'text' ? content : (msgType === 'image' ? '[图片]' : '[视频]');
+      const notifId = crypto.randomUUID();
+      db.prepare(
+        `INSERT INTO seedchat_notifications (id, user_id, type, from_user_id, from_username, from_avatar, content, is_read, created_at)
+         VALUES (?, ?, 'message', ?, ?, ?, ?, 0, ?)`
+      ).run(notifId, receiverId, user.id, user.username, user.avatar, preview, createdAt);
+    }
+
+    // 如果是发给 AI 的文本消息，调用 Groq API 生成回复
+    if (isAIMessage && msgType === 'text') {
+      // 获取最近的对话历史（最多 20 条）
+      const history = db.prepare(
+        `SELECT content, type, sender_id FROM seedchat_messages
+         WHERE (sender_id = ? AND receiver_id = ?)
+            OR (sender_id = ? AND receiver_id = ?)
+         ORDER BY created_at DESC LIMIT 20`
+      ).all(user.id, AI_USER_ID, AI_USER_ID, user.id);
+
+      // 转换为 Groq 格式（正序）
+      const chatMessages = history.reverse().map((m) => ({
+        role: m.sender_id === user.id ? 'user' : 'assistant',
+        content: m.type === 'text' ? m.content : (m.type === 'image' ? '[图片]' : '[视频]'),
+      }));
+
+      // 调用 Groq
+      const aiReply = await callGroq(chatMessages);
+
+      // 存储 AI 回复
+      const aiMsgId = crypto.randomUUID();
+      const aiCreatedAt = new Date().toISOString();
+      db.prepare(
+        `INSERT INTO seedchat_messages (id, sender_id, receiver_id, content, type, is_read, created_at)
+         VALUES (?, ?, ?, ?, 'text', 0, ?)`
+      ).run(aiMsgId, AI_USER_ID, user.id, aiReply, aiCreatedAt);
+
+      // 返回用户的消息和 AI 的回复
+      return c.json({
+        id,
+        sender_id: user.id,
+        receiver_id: receiverId,
+        content,
+        type: msgType,
+        is_read: 0,
+        created_at: createdAt,
+        ai_reply: {
+          id: aiMsgId,
+          sender_id: AI_USER_ID,
+          receiver_id: user.id,
+          content: aiReply,
+          type: 'text',
+          is_read: 0,
+          created_at: aiCreatedAt,
+        },
+      }, 201);
+    }
 
     return c.json({
       id,
