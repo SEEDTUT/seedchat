@@ -20,6 +20,7 @@ import { formatTime } from '../lib/time';
 import { shortUid } from '../lib/uid';
 import DefaultAvatar from './DefaultAvatar';
 import { NameplateBadge } from './Nameplate';
+import AvatarReminder from './AvatarReminder';
 
 // 顶部头像：有头像用图片，否则用几何默认头像
 function HeaderAvatar({ user, size = 36 }) {
@@ -364,6 +365,9 @@ export default function Layout() {
       <main className="mx-auto max-w-6xl px-4 pt-24 pb-12">
         <Outlet />
       </main>
+
+      {/* 首次进入提醒设置头像 */}
+      <AvatarReminder />
     </div>
   );
 }
