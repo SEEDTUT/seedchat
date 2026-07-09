@@ -128,6 +128,12 @@ app.post('/login', async (c) => {
     const token = nanoid();
     db.prepare('UPDATE seedchat_users SET token = ? WHERE id = ?').run(token, user.id);
 
+    // 记录最近登录时间，供定时清理任务判断用户活跃度使用
+    db.prepare('UPDATE seedchat_users SET last_login = ? WHERE id = ?').run(
+      new Date().toISOString(),
+      user.id
+    );
+
     return c.json({
       id: user.id,
       username: user.username,

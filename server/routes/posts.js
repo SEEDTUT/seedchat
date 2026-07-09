@@ -66,6 +66,43 @@ app.post('/', async (c) => {
   }
 });
 
+// GET /api/posts/:id - 获取单个帖子详情
+// 返回该帖子的所有字段（含 view_count）以及 comment_count
+// 每次访问会递增该帖子的 view_count，返回值为递增后的最新浏览量
+app.get('/:id', (c) => {
+  try {
+    const { id } = c.req.param();
+
+    // 先递增浏览量
+    const info = db.prepare(
+      'UPDATE seedchat_posts SET view_count = view_count + 1 WHERE id = ?'
+    ).run(id);
+
+    if (info.changes === 0) {
+      return c.json({ error: '帖子不存在' }, 404);
+    }
+
+    const post = db.prepare(
+      `SELECT p.id, p.user_id, p.username, p.nickname, p.avatar, p.title, p.content, p.image, p.created_at, p.view_count,
+              (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count
+       FROM seedchat_posts p
+       WHERE p.id = ?`
+    ).get(id);
+
+    if (!post) {
+      return c.json({ error: '帖子不存在' }, 404);
+    }
+
+    return c.json({
+      ...post,
+      view_count: post.view_count || 0,
+      comment_count: post.comment_count || 0,
+    });
+  } catch (err) {
+    return c.json({ error: err.message || '服务器内部错误' }, 500);
+  }
+});
+
 // DELETE /api/posts/:id - 删除帖子（仅作者或管理员可删）
 app.delete('/:id', (c) => {
   try {

@@ -9,6 +9,7 @@ import {
   X,
   Send,
   MessageCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { postsApi, announcementsApi } from '../api';
@@ -221,9 +222,15 @@ function PostCard({ post, onDelete }) {
             />
           </button>
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-gray-900 text-lg break-words">
-              {post.title}
-            </h3>
+            <button
+              onClick={() => navigate(`/post/${post.id}`)}
+              className="text-left w-full"
+              title="查看详情"
+            >
+              <h3 className="font-semibold text-gray-900 text-lg break-words hover:text-primary transition">
+                {post.title}
+              </h3>
+            </button>
             <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
               <span className="font-medium text-gray-500">
                 {post.nickname || post.username}
@@ -252,6 +259,13 @@ function PostCard({ post, onDelete }) {
 
       {/* 操作按钮 */}
       <div className="flex items-center gap-2 mt-4">
+        <button
+          onClick={() => navigate(`/post/${post.id}`)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-sm text-primary hover:bg-primary-50 transition"
+        >
+          <ExternalLink size={16} />
+          查看详情
+        </button>
         <button
           onClick={toggleComments}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-sm transition ${

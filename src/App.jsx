@@ -9,6 +9,8 @@ import Home from './pages/Home';
 import Friends from './pages/Friends';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
+import PostDetail from './pages/PostDetail';
+import UserProfile from './pages/UserProfile';
 
 export default function App() {
   const token = useStore((s) => s.token);
@@ -45,6 +47,8 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="friends" element={<Friends />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="post/:id" element={<PostDetail />} />
+          <Route path="user/:id" element={<UserProfile />} />
         </Route>
       </Route>
       <Route element={<ProtectedRoute requireAdmin />}>

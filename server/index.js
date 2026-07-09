@@ -3,12 +3,14 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { initDB } from './db.js';
+import { startCleanupJob } from './cleanup.js';
 import authRoutes from './routes/auth.js';
 import postsRoutes from './routes/posts.js';
 import friendsRoutes from './routes/friends.js';
 import messagesRoutes from './routes/messages.js';
 import { announcementsRoutes, adminRoutes } from './routes/admin.js';
 import notificationsRoutes from './routes/notifications.js';
+import usersRoutes from './routes/users.js';
 
 const app = new Hono();
 
@@ -21,6 +23,7 @@ app.route('/api/messages', messagesRoutes);
 app.route('/api', announcementsRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/notifications', notificationsRoutes);
+app.route('/api/users', usersRoutes);
 
 // 静态文件
 app.use('*', serveStatic({ root: './dist' }));
@@ -28,6 +31,8 @@ app.get('*', serveStatic({ path: './dist/index.html' }));
 
 const port = process.env.PORT || 8080;
 initDB();
+// 初始化数据库后启动定时清理任务（立即执行一次，之后每小时执行一次）
+startCleanupJob();
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`Server running on http://localhost:${info.port}`);
 });

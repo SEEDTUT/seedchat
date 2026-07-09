@@ -38,11 +38,13 @@ export function initDB() {
   // Users table
   addColumnIfMissing('seedchat_users', 'nickname', 'TEXT');
   addColumnIfMissing('seedchat_users', 'avatar', 'TEXT');
+  addColumnIfMissing('seedchat_users', 'last_login', 'TEXT');
 
   // Posts table
   addColumnIfMissing('seedchat_posts', 'nickname', 'TEXT');
   addColumnIfMissing('seedchat_posts', 'avatar', 'TEXT');
   addColumnIfMissing('seedchat_posts', 'image', 'TEXT');
+  addColumnIfMissing('seedchat_posts', 'view_count', 'INTEGER DEFAULT 0');
 
   // Messages table
   addColumnIfMissing('seedchat_messages', 'type', "TEXT DEFAULT 'text'");

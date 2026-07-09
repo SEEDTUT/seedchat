@@ -68,6 +68,7 @@ export const authApi = {
 // Posts
 export const postsApi = {
   list: () => request('/api/posts'),
+  getDetail: (id) => request(`/api/posts/${id}`),
   create: (body) =>
     request('/api/posts', { method: 'POST', body: JSON.stringify(body) }),
   remove: (id) => request(`/api/posts/${id}`, { method: 'DELETE' }),
@@ -81,6 +82,12 @@ export const postsApi = {
     request(`/api/posts/${postId}/comments/${commentId}`, {
       method: 'DELETE',
     }),
+};
+
+// Users
+export const usersApi = {
+  profile: (userId) => request(`/api/users/${userId}`),
+  posts: (userId) => request(`/api/users/${userId}/posts`),
 };
 
 // Friends
