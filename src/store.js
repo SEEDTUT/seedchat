@@ -16,6 +16,13 @@ export const useStore = create((set) => ({
     set({ user: null, token: null });
   },
 
+  // 局部更新当前用户信息（nickname、avatar 等）
+  updateUser: (patch) => {
+    set((state) =>
+      state.user ? { user: { ...state.user, ...patch } } : state
+    );
+  },
+
   loadUser: async () => {
     const token = localStorage.getItem('seedchat_token');
     if (!token) {

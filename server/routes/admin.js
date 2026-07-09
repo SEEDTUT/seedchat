@@ -32,11 +32,11 @@ announcementsRoutes.get('/announcements', authRequired, (c) => {
 const adminRoutes = new Hono();
 adminRoutes.use('*', adminRequired);
 
-// GET /api/admin/posts - 获取所有帖子
+// GET /api/admin/posts - 获取所有帖子（包含 nickname, avatar, image）
 adminRoutes.get('/posts', (c) => {
   try {
     const posts = db.prepare(
-      `SELECT id, user_id, username, title, content, created_at
+      `SELECT id, user_id, username, nickname, avatar, title, content, image, created_at
        FROM seedchat_posts
        ORDER BY created_at DESC`
     ).all();
@@ -64,11 +64,11 @@ adminRoutes.delete('/posts/:id', (c) => {
   }
 });
 
-// GET /api/admin/users - 获取所有用户
+// GET /api/admin/users - 获取所有用户（包含 nickname, avatar）
 adminRoutes.get('/users', (c) => {
   try {
     const users = db.prepare(
-      `SELECT id, username, is_admin, created_at
+      `SELECT id, username, nickname, avatar, is_admin, created_at
        FROM seedchat_users
        ORDER BY created_at DESC`
     ).all();

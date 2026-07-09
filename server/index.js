@@ -8,6 +8,7 @@ import postsRoutes from './routes/posts.js';
 import friendsRoutes from './routes/friends.js';
 import messagesRoutes from './routes/messages.js';
 import { announcementsRoutes, adminRoutes } from './routes/admin.js';
+import notificationsRoutes from './routes/notifications.js';
 
 const app = new Hono();
 
@@ -19,6 +20,7 @@ app.route('/api/friends', friendsRoutes);
 app.route('/api/messages', messagesRoutes);
 app.route('/api', announcementsRoutes);
 app.route('/api/admin', adminRoutes);
+app.route('/api/notifications', notificationsRoutes);
 
 // 静态文件
 app.use('*', serveStatic({ root: './dist' }));

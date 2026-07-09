@@ -7,7 +7,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/Home';
 import Friends from './pages/Friends';
-import Messages from './pages/Messages';
+import Settings from './pages/Settings';
 import Admin from './pages/Admin';
 
 export default function App() {
@@ -44,7 +44,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="friends" element={<Friends />} />
-          <Route path="messages" element={<Messages />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Route>
       <Route element={<ProtectedRoute requireAdmin />}>

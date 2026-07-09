@@ -2,6 +2,8 @@ CREATE TABLE IF NOT EXISTS seedchat_users (
   id TEXT PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  nickname TEXT,
+  avatar TEXT,
   is_admin INTEGER DEFAULT 0,
   token TEXT,
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
@@ -11,8 +13,11 @@ CREATE TABLE IF NOT EXISTS seedchat_posts (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   username TEXT NOT NULL,
+  nickname TEXT,
+  avatar TEXT,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
+  image TEXT,
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 
@@ -29,8 +34,40 @@ CREATE TABLE IF NOT EXISTS seedchat_messages (
   sender_id TEXT NOT NULL,
   receiver_id TEXT NOT NULL,
   content TEXT NOT NULL,
+  type TEXT DEFAULT 'text',
   is_read INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE TABLE IF NOT EXISTS seedchat_comments (
+  id TEXT PRIMARY KEY,
+  post_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  username TEXT NOT NULL,
+  nickname TEXT,
+  avatar TEXT,
+  content TEXT NOT NULL,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE TABLE IF NOT EXISTS seedchat_notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  from_user_id TEXT NOT NULL,
+  from_username TEXT NOT NULL,
+  from_avatar TEXT,
+  content TEXT,
+  is_read INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE TABLE IF NOT EXISTS seedchat_blocks (
+  id TEXT PRIMARY KEY,
+  blocker_id TEXT NOT NULL,
+  blocked_id TEXT NOT NULL,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  UNIQUE(blocker_id, blocked_id)
 );
 
 CREATE TABLE IF NOT EXISTS seedchat_announcements (

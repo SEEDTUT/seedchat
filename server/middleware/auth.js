@@ -1,7 +1,7 @@
 import { db } from '../db.js';
 
 // 从 Authorization: Bearer <token> header 提取 token
-// 查询数据库验证 token，返回用户信息 { id, username, is_admin } 或 null
+// 查询数据库验证 token，返回用户信息 { id, username, nickname, avatar, is_admin } 或 null
 function getUserFromRequest(c) {
   const authHeader = c.req.header('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -14,7 +14,7 @@ function getUserFromRequest(c) {
   }
 
   const user = db.prepare(
-    'SELECT id, username, is_admin FROM seedchat_users WHERE token = ?'
+    'SELECT id, username, nickname, avatar, is_admin FROM seedchat_users WHERE token = ?'
   ).get(token);
 
   return user || null;
