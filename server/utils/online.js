@@ -2,16 +2,11 @@
 // 基于 users.last_active 字段（每次认证请求都会更新）判断用户是否在线
 // 阈值：最近 2 分钟内有活跃即视为在线
 
-import { AI_USER_ID } from '../utils/ai.js';
-
 const ONLINE_THRESHOLD_MS = 2 * 60 * 1000; // 2 分钟
 
 // 判断单个用户是否在线
 // lastActive 为 ISO 字符串或 null
-// userId 可选，AI 用户始终在线
-export function isOnline(lastActive, userId) {
-  // AI 用户始终在线
-  if (userId === AI_USER_ID) return true;
+export function isOnline(lastActive) {
   if (!lastActive) return false;
   const last = new Date(lastActive).getTime();
   if (Number.isNaN(last)) return false;
@@ -23,7 +18,7 @@ export function isOnline(lastActive, userId) {
 export function withOnlineStatus(user) {
   if (!user) return user;
   const lastActive = user.last_active;
-  user.is_online = isOnline(lastActive, user.id);
+  user.is_online = isOnline(lastActive);
   delete user.last_active;
   return user;
 }

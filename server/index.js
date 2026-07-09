@@ -44,10 +44,6 @@ app.use('/favicon.png', async (c, next) => {
   await next();
   c.header('Cache-Control', 'public, max-age=2592000');
 });
-app.use('/open-seed-avatar.jpg', async (c, next) => {
-  await next();
-  c.header('Cache-Control', 'public, max-age=2592000');
-});
 app.use('*', serveStatic({ root: './dist' }));
 app.get('*', serveStatic({ path: './dist/index.html' }));
 
