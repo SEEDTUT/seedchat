@@ -145,17 +145,7 @@ function PostCard({ post, onDelete, friendsSet }) {
       toast.message('不能给自己发私信');
       return;
     }
-    navigate('/friends', {
-      state: {
-        chatUser: {
-          id: post.user_id,
-          username: post.username,
-          nickname: post.nickname,
-          avatar: post.avatar,
-          active_nameplate: post.active_nameplate,
-        },
-      },
-    });
+    navigate(`/messages?to=${post.user_id}`);
   };
 
   const handleLike = async () => {

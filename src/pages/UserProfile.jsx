@@ -79,17 +79,7 @@ export default function UserProfile() {
       toast.message('不能给自己发私信');
       return;
     }
-    navigate('/friends', {
-      state: {
-        chatUser: {
-          id: profile.id,
-          username: profile.username,
-          nickname: profile.nickname,
-          avatar: profile.avatar,
-          active_nameplate: profile.active_nameplate,
-        },
-      },
-    });
+    navigate(`/messages?to=${profile.id}`);
   };
 
   const handleToggleFollow = async () => {

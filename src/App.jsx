@@ -13,6 +13,7 @@ import PostDetail from './pages/PostDetail';
 import UserProfile from './pages/UserProfile';
 import About from './pages/About';
 import Updates from './pages/Updates';
+import Messages from './pages/Messages';
 
 export default function App() {
   const token = useStore((s) => s.token);
@@ -52,6 +53,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="friends" element={<Friends />} />
+          <Route path="messages" element={<Messages />} />
           <Route path="settings" element={<Settings />} />
           <Route path="post/:id" element={<PostDetail />} />
           <Route path="user/:id" element={<UserProfile />} />

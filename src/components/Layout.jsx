@@ -12,6 +12,7 @@ import {
   CheckCheck,
   Info,
   Package,
+  MessageSquare,
 } from 'lucide-react';
 import { useStore } from '../store';
 import { notificationsApi } from '../api';
@@ -66,6 +67,7 @@ export default function Layout() {
 
   const navItems = [
     { to: '/', label: '首页', icon: Home, end: true },
+    { to: '/messages', label: '私信', icon: MessageSquare },
     { to: '/friends', label: '好友', icon: Users },
     { to: '/updates', label: '更新', icon: Package },
     { to: '/about', label: '关于', icon: Info },
