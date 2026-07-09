@@ -1,8 +1,9 @@
 import { db } from '../db.js';
+import { buildActiveNameplate } from '../utils/nameplate.js';
 
 // 从 Authorization: Bearer <token> header 提取 token
 // 查询数据库验证 token，返回用户信息
-// { id, username, nickname, avatar, is_admin, is_admin_mode, uid, active_nameplate_id } 或 null
+// { id, username, nickname, avatar, is_admin, is_admin_mode, uid, active_nameplate_id, active_nameplate } 或 null
 function getUserFromRequest(c) {
   const authHeader = c.req.header('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -26,11 +27,16 @@ function getUserFromRequest(c) {
       is_admin_mode: true,
       uid: 0,
       active_nameplate_id: null,
+      active_nameplate: null,
     };
   }
 
   const user = db.prepare(
-    'SELECT id, username, nickname, avatar, is_admin, uid, active_nameplate_id FROM seedchat_users WHERE token = ?'
+    `SELECT u.id, u.username, u.nickname, u.avatar, u.is_admin, u.uid, u.active_nameplate_id,
+            np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
+     FROM seedchat_users u
+     LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
+     WHERE u.token = ?`
   ).get(token);
 
   if (!user) {
@@ -38,6 +44,8 @@ function getUserFromRequest(c) {
   }
   // 普通用户不是管理员模式
   user.is_admin_mode = false;
+  // 构建嵌套的 active_nameplate 对象（{ text, bg_color, text_color } 或 null）
+  user.active_nameplate = buildActiveNameplate(user);
   return user;
 }
 

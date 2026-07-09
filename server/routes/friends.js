@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { db } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
+import { withActiveNameplate, withActiveNameplateArray } from '../utils/nameplate.js';
 
 const app = new Hono();
 
@@ -16,10 +17,12 @@ app.get('/', (c) => {
 
     const friends = db.prepare(
       `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, f.created_at,
+              np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_friendships r
                WHERE r.follower_id = u.id AND r.followee_id = ?) > 0 AS is_mutual
        FROM seedchat_friendships f
        JOIN seedchat_users u ON f.followee_id = u.id
+       LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
        WHERE f.follower_id = ?
        ORDER BY f.created_at DESC`
     ).all(user.id, user.id);
@@ -28,6 +31,8 @@ app.get('/', (c) => {
       ...f,
       is_mutual: !!f.is_mutual,
     }));
+
+    withActiveNameplateArray(result);
 
     return c.json(result);
   } catch (err) {
@@ -43,6 +48,7 @@ app.get('/users', (c) => {
 
     const users = db.prepare(
       `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id,
+              np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_friendships f
                WHERE f.follower_id = ? AND f.followee_id = u.id) > 0 AS is_friend,
               (SELECT COUNT(*) FROM seedchat_friendships f
@@ -50,21 +56,29 @@ app.get('/users', (c) => {
               (SELECT COUNT(*) FROM seedchat_blocks b
                WHERE b.blocker_id = ? AND b.blocked_id = u.id) > 0 AS is_blocked
        FROM seedchat_users u
+       LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
        WHERE u.id != ?
        ORDER BY u.uid`
     ).all(user.id, user.id, user.id, user.id);
 
-    const result = users.map((u) => ({
-      id: u.id,
-      uid: u.uid,
-      username: u.username,
-      nickname: u.nickname,
-      avatar: u.avatar,
-      active_nameplate_id: u.active_nameplate_id,
-      is_friend: !!u.is_friend,
-      is_mutual: !!u.is_mutual,
-      is_blocked: !!u.is_blocked,
-    }));
+    const result = users.map((u) => {
+      const { nameplate_text, nameplate_bg_color, nameplate_text_color, ...rest } = u;
+      const active_nameplate = nameplate_text
+        ? { text: nameplate_text, bg_color: nameplate_bg_color, text_color: nameplate_text_color }
+        : null;
+      return {
+        id: rest.id,
+        uid: rest.uid,
+        username: rest.username,
+        nickname: rest.nickname,
+        avatar: rest.avatar,
+        active_nameplate_id: rest.active_nameplate_id,
+        active_nameplate,
+        is_friend: !!rest.is_friend,
+        is_mutual: !!rest.is_mutual,
+        is_blocked: !!rest.is_blocked,
+      };
+    });
 
     return c.json(result);
   } catch (err) {
@@ -79,14 +93,16 @@ app.get('/blocked', (c) => {
     const user = c.get('user');
 
     const blocked = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id,
+              np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_blocks b
        JOIN seedchat_users u ON b.blocked_id = u.id
+       LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
        WHERE b.blocker_id = ?
        ORDER BY b.created_at DESC`
     ).all(user.id);
 
-    return c.json(blocked);
+    return c.json(withActiveNameplateArray(blocked));
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
   }

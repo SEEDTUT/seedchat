@@ -117,6 +117,7 @@ export default function UserProfile() {
           username: profile.username,
           nickname: profile.nickname,
           avatar: profile.avatar,
+          active_nameplate: profile.active_nameplate,
         },
       },
     });

@@ -172,6 +172,7 @@ export default function Friends() {
         username: cu.username,
         nickname: cu.nickname,
         avatar: cu.avatar,
+        active_nameplate: cu.active_nameplate || (found ? found.active_nameplate : null),
         is_mutual: found ? !!found.is_mutual : false,
       });
     }

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { db } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
+import { withActiveNameplate, withActiveNameplateArray } from '../utils/nameplate.js';
 
 const app = new Hono();
 
@@ -16,7 +17,11 @@ app.get('/:userId', (c) => {
     const { userId } = c.req.param();
 
     const user = db.prepare(
-      'SELECT id, uid, username, nickname, avatar, active_nameplate_id, created_at FROM seedchat_users WHERE id = ?'
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.created_at,
+              np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
+       FROM seedchat_users u
+       LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
+       WHERE u.id = ?`
     ).get(userId);
 
     if (!user) {
@@ -27,13 +32,13 @@ app.get('/:userId', (c) => {
       'SELECT COUNT(*) AS post_count FROM seedchat_posts WHERE user_id = ?'
     ).get(userId);
 
-    // 若有激活的铭牌，查询铭牌详情
-    let active_nameplate = null;
-    if (user.active_nameplate_id) {
-      active_nameplate = db.prepare(
-        'SELECT id, text, bg_color, text_color FROM seedchat_nameplates WHERE id = ?'
-      ).get(user.active_nameplate_id);
-    }
+    // 构建嵌套的 active_nameplate 对象（{ text, bg_color, text_color } 或 null）
+    const active_nameplate = user.nameplate_text
+      ? { text: user.nameplate_text, bg_color: user.nameplate_bg_color, text_color: user.nameplate_text_color }
+      : null;
+    delete user.nameplate_text;
+    delete user.nameplate_bg_color;
+    delete user.nameplate_text_color;
 
     return c.json({
       id: user.id,
@@ -67,9 +72,11 @@ app.get('/:userId/posts', (c) => {
     const posts = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at, p.view_count,
               u.nickname, u.avatar, u.uid, u.active_nameplate_id,
+              np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count
        FROM seedchat_posts p
        LEFT JOIN seedchat_users u ON p.user_id = u.id
+       LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
        WHERE p.user_id = ?
        ORDER BY p.created_at DESC`
     ).all(userId);
@@ -79,6 +86,8 @@ app.get('/:userId/posts', (c) => {
       view_count: p.view_count || 0,
       comment_count: p.comment_count || 0,
     }));
+
+    withActiveNameplateArray(result);
 
     return c.json(result);
   } catch (err) {

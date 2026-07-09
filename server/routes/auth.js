@@ -202,6 +202,7 @@ app.get('/me', authRequired, (c) => {
     is_admin: !!user.is_admin,
     is_admin_mode: !!user.is_admin_mode,
     active_nameplate_id: user.active_nameplate_id || null,
+    active_nameplate: user.active_nameplate || null,
   });
 });
 

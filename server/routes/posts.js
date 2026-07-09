@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { db } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
+import { withActiveNameplate, withActiveNameplateArray } from '../utils/nameplate.js';
 
 const app = new Hono();
 
@@ -16,9 +17,11 @@ app.get('/', (c) => {
     const posts = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at,
               u.nickname, u.avatar, u.uid, u.active_nameplate_id,
+              np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count
        FROM seedchat_posts p
        LEFT JOIN seedchat_users u ON p.user_id = u.id
+       LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
        ORDER BY p.created_at DESC`
     ).all();
 
@@ -26,6 +29,8 @@ app.get('/', (c) => {
       ...p,
       comment_count: p.comment_count || 0,
     }));
+
+    withActiveNameplateArray(result);
 
     return c.json(result);
   } catch (err) {
@@ -67,6 +72,7 @@ app.post('/', async (c) => {
       nickname: user.nickname,
       avatar: user.avatar,
       active_nameplate_id: user.active_nameplate_id,
+      active_nameplate: user.active_nameplate || null,
       title,
       content,
       image: image || null,
@@ -97,9 +103,11 @@ app.get('/:id', (c) => {
     const post = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at, p.view_count,
               u.nickname, u.avatar, u.uid, u.active_nameplate_id,
+              np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count
        FROM seedchat_posts p
        LEFT JOIN seedchat_users u ON p.user_id = u.id
+       LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
        WHERE p.id = ?`
     ).get(id);
 
@@ -107,11 +115,11 @@ app.get('/:id', (c) => {
       return c.json({ error: '帖子不存在' }, 404);
     }
 
-    return c.json({
+    return c.json(withActiveNameplate({
       ...post,
       view_count: post.view_count || 0,
       comment_count: post.comment_count || 0,
-    });
+    }));
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
   }
@@ -151,14 +159,16 @@ app.get('/:id/comments', (c) => {
 
     const comments = db.prepare(
       `SELECT cm.id, cm.post_id, cm.user_id, cm.content, cm.created_at,
-              u.nickname, u.avatar, u.uid, u.active_nameplate_id
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id,
+              np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_comments cm
        LEFT JOIN seedchat_users u ON cm.user_id = u.id
+       LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
        WHERE cm.post_id = ?
        ORDER BY cm.created_at ASC`
     ).all(id);
 
-    return c.json(comments);
+    return c.json(withActiveNameplateArray(comments));
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
   }
@@ -205,6 +215,7 @@ app.post('/:id/comments', async (c) => {
       nickname: user.nickname,
       avatar: user.avatar,
       active_nameplate_id: user.active_nameplate_id,
+      active_nameplate: user.active_nameplate || null,
       content,
       created_at: createdAt,
     }, 201);

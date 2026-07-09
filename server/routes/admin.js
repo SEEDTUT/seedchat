@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { db } from '../db.js';
 import { authRequired, adminRequired } from '../middleware/auth.js';
+import { withActiveNameplateArray } from '../utils/nameplate.js';
 
 // 公告公开接口路由（仅需 authRequired）
 // 挂载在 /api，所以路由路径为 /announcements
@@ -37,13 +38,15 @@ adminRoutes.get('/posts', (c) => {
   try {
     const posts = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at,
-              u.nickname, u.avatar, u.uid, u.active_nameplate_id
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id,
+              np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_posts p
        LEFT JOIN seedchat_users u ON p.user_id = u.id
+       LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
        ORDER BY p.created_at DESC`
     ).all();
 
-    return c.json(posts);
+    return c.json(withActiveNameplateArray(posts));
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
   }
@@ -70,15 +73,19 @@ adminRoutes.delete('/posts/:id', (c) => {
 adminRoutes.get('/users', (c) => {
   try {
     const users = db.prepare(
-      `SELECT id, uid, username, nickname, avatar, is_admin, active_nameplate_id, created_at
-       FROM seedchat_users
-       ORDER BY uid ASC`
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.is_admin, u.active_nameplate_id, u.created_at,
+              np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
+       FROM seedchat_users u
+       LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
+       ORDER BY u.uid ASC`
     ).all();
 
     const result = users.map((u) => ({
       ...u,
       is_admin: !!u.is_admin,
     }));
+
+    withActiveNameplateArray(result);
 
     return c.json(result);
   } catch (err) {

@@ -150,6 +150,7 @@ function PostCard({ post, onDelete }) {
           username: post.username,
           nickname: post.nickname,
           avatar: post.avatar,
+          active_nameplate: post.active_nameplate,
         },
       },
     });
