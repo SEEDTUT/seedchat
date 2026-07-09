@@ -10,33 +10,50 @@ import {
   X,
   Bell,
   CheckCheck,
+  Info,
+  Package,
 } from 'lucide-react';
 import { useStore } from '../store';
 import { notificationsApi } from '../api';
 import { toast } from 'sonner';
 import { formatTime } from '../lib/time';
+import { shortUid } from '../lib/uid';
+import DefaultAvatar from './DefaultAvatar';
+import { NameplateBadge } from './Nameplate';
 
-function HeaderAvatar({ user, size = 'w-9 h-9' }) {
+// 顶部头像：有头像用图片，否则用几何默认头像
+function HeaderAvatar({ user, size = 36 }) {
   if (user?.avatar) {
     return (
       <img
         src={user.avatar}
         alt=""
-        className={`${size} rounded-2xl object-cover`}
+        className="rounded-2xl object-cover"
+        style={{ width: size, height: size }}
       />
     );
   }
-  return (
-    <div
-      className={`${size} rounded-2xl bg-primary-100 text-primary flex items-center justify-center font-semibold`}
-    >
-      {(user?.nickname || user?.username || '?').charAt(0).toUpperCase()}
-    </div>
-  );
+  return <DefaultAvatar seed={user?.id} size={size} />;
+}
+
+// 通知列表项头像
+function NotifAvatar({ n, size = 36 }) {
+  if (n.from_avatar) {
+    return (
+      <img
+        src={n.from_avatar}
+        alt=""
+        className="rounded-2xl object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return <DefaultAvatar seed={n.from_user_id} size={size} />;
 }
 
 export default function Layout() {
   const user = useStore((s) => s.user);
+  const isAdminMode = useStore((s) => s.is_admin_mode);
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -45,13 +62,17 @@ export default function Layout() {
   const [unread, setUnread] = useState(0);
   const notifRef = useRef(null);
 
+  const showAdminFeatures = user?.is_admin || isAdminMode;
+
   const navItems = [
     { to: '/', label: '首页', icon: Home, end: true },
     { to: '/friends', label: '好友', icon: Users },
+    { to: '/updates', label: '更新', icon: Package },
+    { to: '/about', label: '关于', icon: Info },
     { to: '/settings', label: '设置', icon: Settings },
   ];
 
-  if (user?.is_admin) {
+  if (showAdminFeatures) {
     navItems.push({ to: '/admin', label: '管理后台', icon: Shield });
   }
 
@@ -122,6 +143,74 @@ export default function Layout() {
         : 'text-gray-600 hover:bg-gray-100'
     }`;
 
+  const renderNotifList = (widthClass) => (
+    <div className={`mt-2 ${widthClass} bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden`}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <span className="font-semibold text-gray-900">通知</span>
+        {unread > 0 && (
+          <button
+            onClick={handleMarkAllRead}
+            className="flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <CheckCheck size={14} />
+            全部已读
+          </button>
+        )}
+      </div>
+      <div className="max-h-96 overflow-y-auto">
+        {recentNotifications.length === 0 ? (
+          <div className="px-4 py-10 text-center text-gray-400 text-sm">
+            暂无通知
+          </div>
+        ) : (
+          recentNotifications.map((n) => (
+            <button
+              key={n.id}
+              onClick={() => handleMarkRead(n.id)}
+              className={`w-full flex items-start gap-3 px-4 py-3 text-left transition hover:bg-gray-50 ${
+                !n.is_read ? 'bg-primary-50/60' : ''
+              }`}
+            >
+              <div className="flex-shrink-0 mt-0.5">
+                <NotifAvatar n={n} size={36} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-gray-800 break-words">
+                  <span className="font-medium">{n.from_username}</span>{' '}
+                  {n.content}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {formatTime(n.created_at)}
+                </p>
+              </div>
+              {!n.is_read && (
+                <span className="flex-shrink-0 mt-1.5 w-2 h-2 rounded-full bg-primary" />
+              )}
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  const renderUserChip = () => (
+    <div className="flex items-center gap-2">
+      <HeaderAvatar user={user} />
+      <div className="flex flex-col">
+        <span className="text-sm text-gray-600 flex items-center gap-1.5 flex-wrap">
+          {user?.nickname || user?.username}
+          <NameplateBadge obj={user} />
+          {showAdminFeatures && (
+            <span className="text-xs bg-primary-50 text-primary px-2 py-0.5 rounded-full">
+              {isAdminMode ? '管理员模式' : '管理员'}
+            </span>
+          )}
+        </span>
+        <span className="text-xs text-gray-400">@{user?.uid || shortUid(user?.id)}</span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen">
       {/* 顶部固定导航栏 */}
@@ -129,10 +218,17 @@ export default function Layout() {
         <div className="mx-auto max-w-6xl px-4 mt-3">
           <nav className="bg-white/80 backdrop-blur-md border border-gray-100 rounded-3xl shadow-sm px-4 sm:px-6 py-3 flex items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🌱</span>
-              <span className="text-xl font-bold text-gray-900">seedchat</span>
-            </div>
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2"
+            >
+              <img
+                src="/logo.png"
+                alt="seedchat×丐帮"
+                className="w-8 h-8 rounded-xl object-cover"
+              />
+              <span className="text-xl font-bold text-gray-900">seedchat×丐帮</span>
+            </button>
 
             {/* 桌面端导航 */}
             <div className="hidden md:flex items-center gap-1">
@@ -165,87 +261,16 @@ export default function Layout() {
                     </span>
                   )}
                 </button>
-
-                {notifOpen && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                      <span className="font-semibold text-gray-900">通知</span>
-                      {unread > 0 && (
-                        <button
-                          onClick={handleMarkAllRead}
-                          className="flex items-center gap-1 text-xs text-primary hover:underline"
-                        >
-                          <CheckCheck size={14} />
-                          全部已读
-                        </button>
-                      )}
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {recentNotifications.length === 0 ? (
-                        <div className="px-4 py-10 text-center text-gray-400 text-sm">
-                          暂无通知
-                        </div>
-                      ) : (
-                        recentNotifications.map((n) => (
-                          <button
-                            key={n.id}
-                            onClick={() => handleMarkRead(n.id)}
-                            className={`w-full flex items-start gap-3 px-4 py-3 text-left transition hover:bg-gray-50 ${
-                              !n.is_read ? 'bg-primary-50/60' : ''
-                            }`}
-                          >
-                            <div className="flex-shrink-0 mt-0.5">
-                              {n.from_avatar ? (
-                                <img
-                                  src={n.from_avatar}
-                                  alt=""
-                                  className="w-9 h-9 rounded-2xl object-cover"
-                                />
-                              ) : (
-                                <div className="w-9 h-9 rounded-2xl bg-primary-100 text-primary flex items-center justify-center font-semibold">
-                                  {(n.from_username || '?')
-                                    .charAt(0)
-                                    .toUpperCase()}
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm text-gray-800 break-words">
-                                <span className="font-medium">
-                                  {n.from_username}
-                                </span>{' '}
-                                {n.content}
-                              </p>
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                {formatTime(n.created_at)}
-                              </p>
-                            </div>
-                            {!n.is_read && (
-                              <span className="flex-shrink-0 mt-1.5 w-2 h-2 rounded-full bg-primary" />
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
+                {notifOpen && <div className="absolute right-0">{renderNotifList('w-80')}</div>}
               </div>
 
               {/* 用户头像与名称 */}
               <button
                 onClick={() => navigate('/settings')}
-                className="flex items-center gap-2 rounded-2xl hover:bg-gray-100 transition pr-2"
+                className="rounded-2xl hover:bg-gray-100 transition pr-2"
                 title="个人设置"
               >
-                <HeaderAvatar user={user} />
-                <span className="text-sm text-gray-600 flex items-center">
-                  {user?.nickname || user?.username}
-                  {user?.is_admin && (
-                    <span className="ml-1 text-xs bg-primary-50 text-primary px-2 py-0.5 rounded-full">
-                      管理员
-                    </span>
-                  )}
-                </span>
+                {renderUserChip()}
               </button>
 
               <button
@@ -272,70 +297,7 @@ export default function Layout() {
                     </span>
                   )}
                 </button>
-
-                {notifOpen && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                      <span className="font-semibold text-gray-900">通知</span>
-                      {unread > 0 && (
-                        <button
-                          onClick={handleMarkAllRead}
-                          className="flex items-center gap-1 text-xs text-primary hover:underline"
-                        >
-                          <CheckCheck size={14} />
-                          全部已读
-                        </button>
-                      )}
-                    </div>
-                    <div className="max-h-80 overflow-y-auto">
-                      {recentNotifications.length === 0 ? (
-                        <div className="px-4 py-10 text-center text-gray-400 text-sm">
-                          暂无通知
-                        </div>
-                      ) : (
-                        recentNotifications.map((n) => (
-                          <button
-                            key={n.id}
-                            onClick={() => handleMarkRead(n.id)}
-                            className={`w-full flex items-start gap-3 px-4 py-3 text-left transition hover:bg-gray-50 ${
-                              !n.is_read ? 'bg-primary-50/60' : ''
-                            }`}
-                          >
-                            <div className="flex-shrink-0 mt-0.5">
-                              {n.from_avatar ? (
-                                <img
-                                  src={n.from_avatar}
-                                  alt=""
-                                  className="w-9 h-9 rounded-2xl object-cover"
-                                />
-                              ) : (
-                                <div className="w-9 h-9 rounded-2xl bg-primary-100 text-primary flex items-center justify-center font-semibold">
-                                  {(n.from_username || '?')
-                                    .charAt(0)
-                                    .toUpperCase()}
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm text-gray-800 break-words">
-                                <span className="font-medium">
-                                  {n.from_username}
-                                </span>{' '}
-                                {n.content}
-                              </p>
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                {formatTime(n.created_at)}
-                              </p>
-                            </div>
-                            {!n.is_read && (
-                              <span className="flex-shrink-0 mt-1.5 w-2 h-2 rounded-full bg-primary" />
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
+                {notifOpen && <div className="absolute right-0">{renderNotifList('w-72')}</div>}
               </div>
 
               <button
@@ -369,24 +331,25 @@ export default function Layout() {
                     setMenuOpen(false);
                     navigate('/settings');
                   }}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 min-w-0"
                 >
-                  <HeaderAvatar user={user} size="w-8 h-8" />
-                  <span className="text-sm text-gray-600 flex items-center">
-                    {user?.nickname || user?.username}
-                    {user?.is_admin && (
-                      <span className="ml-1 text-xs bg-primary-50 text-primary px-2 py-0.5 rounded-full">
-                        管理员
-                      </span>
-                    )}
-                  </span>
+                  <HeaderAvatar user={user} size={32} />
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className="text-sm text-gray-600 flex items-center gap-1.5 flex-wrap">
+                      {user?.nickname || user?.username}
+                      <NameplateBadge obj={user} />
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      @{user?.uid || shortUid(user?.id)}
+                    </span>
+                  </div>
                 </button>
                 <button
                   onClick={() => {
                     setMenuOpen(false);
                     handleLogout();
                   }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-gray-600 hover:bg-gray-100 transition text-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-gray-600 hover:bg-gray-100 transition text-sm flex-shrink-0"
                 >
                   <LogOut size={16} />
                   退出

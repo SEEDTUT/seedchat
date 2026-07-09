@@ -1,17 +1,37 @@
 import { useEffect, useState } from 'react';
-import { FileText, Users, Megaphone, Trash2, Pin, PinOff, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  FileText,
+  Users,
+  Megaphone,
+  Trash2,
+  Pin,
+  PinOff,
+  Plus,
+  Tag,
+  Package,
+  ExternalLink,
+  Eye,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { adminApi } from '../api';
+import { adminApi, nameplatesApi } from '../api';
 import { useStore } from '../store';
 import { formatTime } from '../lib/time';
+import { shortUid } from '../lib/uid';
+import DefaultAvatar from '../components/DefaultAvatar';
+import Nameplate from '../components/Nameplate';
 
 const TABS = [
   { key: 'posts', label: '帖子管理', icon: FileText },
   { key: 'users', label: '用户管理', icon: Users },
+  { key: 'nameplates', label: '铭牌管理', icon: Tag },
+  { key: 'updates', label: '更新管理', icon: Package },
   { key: 'announcements', label: '公告管理', icon: Megaphone },
 ];
 
 export default function Admin() {
+  const navigate = useNavigate();
   const user = useStore((s) => s.user);
   const [tab, setTab] = useState('posts');
   const [posts, setPosts] = useState([]);
@@ -23,6 +43,18 @@ export default function Admin() {
   const [annTitle, setAnnTitle] = useState('');
   const [annContent, setAnnContent] = useState('');
   const [submittingAnn, setSubmittingAnn] = useState(false);
+
+  // 铭牌发放表单
+  const [npUserId, setNpUserId] = useState('');
+  const [npText, setNpText] = useState('');
+  const [npBg, setNpBg] = useState('#2563eb');
+  const [npColor, setNpColor] = useState('#ffffff');
+  const [submittingNp, setSubmittingNp] = useState(false);
+
+  // 查看某用户铭牌
+  const [viewingUserId, setViewingUserId] = useState('');
+  const [userPlates, setUserPlates] = useState([]);
+  const [loadingPlates, setLoadingPlates] = useState(false);
 
   const loadPosts = async () => {
     setLoading(true);
@@ -63,6 +95,7 @@ export default function Admin() {
   useEffect(() => {
     if (tab === 'posts') loadPosts();
     else if (tab === 'users') loadUsers();
+    else if (tab === 'nameplates') loadUsers();
     else if (tab === 'announcements') loadAnnouncements();
   }, [tab]);
 
@@ -115,7 +148,7 @@ export default function Admin() {
     try {
       await adminApi.togglePin(ann.id, { is_pinned: !ann.is_pinned });
       setAnnouncements((prev) =>
-        prev.map((a) => (a.id === ann.id ? { ...a, is_pinned: !a.is_pinned } : a))
+        prev.map((a) => (a.id === ann.id ? { ...a, is_pinned: !ann.is_pinned } : a))
       );
       toast.success(ann.is_pinned ? '已取消置顶' : '已置顶');
     } catch (err) {
@@ -128,6 +161,62 @@ export default function Admin() {
     try {
       await adminApi.removeAnnouncement(ann.id);
       setAnnouncements((prev) => prev.filter((a) => a.id !== ann.id));
+      toast.success('已删除');
+    } catch (err) {
+      toast.error(err.message || '删除失败');
+    }
+  };
+
+  // 发放铭牌
+  const handleGrantNameplate = async (e) => {
+    e.preventDefault();
+    if (!npUserId) {
+      toast.error('请选择用户');
+      return;
+    }
+    if (!npText.trim()) {
+      toast.error('请填写铭牌文字');
+      return;
+    }
+    setSubmittingNp(true);
+    try {
+      await nameplatesApi.grant(npUserId, {
+        text: npText.trim(),
+        bg_color: npBg,
+        text_color: npColor,
+      });
+      toast.success('铭牌已发放');
+      setNpText('');
+      // 如果正在查看该用户的铭牌，刷新
+      if (viewingUserId === npUserId) {
+        loadUserPlates(npUserId);
+      }
+    } catch (err) {
+      toast.error(err.message || '发放失败');
+    } finally {
+      setSubmittingNp(false);
+    }
+  };
+
+  const loadUserPlates = async (userId) => {
+    if (!userId) return;
+    setLoadingPlates(true);
+    try {
+      const data = await nameplatesApi.userPlates(userId);
+      setUserPlates(data || []);
+    } catch (err) {
+      setUserPlates([]);
+      // 接口可能未开放
+    } finally {
+      setLoadingPlates(false);
+    }
+  };
+
+  const handleRemovePlate = async (plateId) => {
+    if (!window.confirm('确定要删除该铭牌吗？')) return;
+    try {
+      await nameplatesApi.remove(plateId);
+      setUserPlates((prev) => prev.filter((p) => p.id !== plateId));
       toast.success('已删除');
     } catch (err) {
       toast.error(err.message || '删除失败');
@@ -175,8 +264,11 @@ export default function Admin() {
                   <h3 className="font-semibold text-gray-900 break-words">
                     {post.title}
                   </h3>
-                  <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
-                    <span>{post.username || post.author}</span>
+                  <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 flex-wrap">
+                    <span>{post.nickname || post.username || post.author}</span>
+                    {post.user_id && (
+                      <span>@{shortUid(post.user_id)}</span>
+                    )}
                     <span>·</span>
                     <span>{formatTime(post.created_at)}</span>
                   </div>
@@ -216,13 +308,21 @@ export default function Admin() {
                   className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-5 flex items-center justify-between gap-4"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex-shrink-0 w-11 h-11 rounded-2xl bg-primary-100 text-primary flex items-center justify-center font-semibold">
-                      {(u.username || '?').charAt(0).toUpperCase()}
+                    <div className="flex-shrink-0">
+                      {u.avatar ? (
+                        <img
+                          src={u.avatar}
+                          alt=""
+                          className="w-11 h-11 rounded-2xl object-cover"
+                        />
+                      ) : (
+                        <DefaultAvatar seed={u.id} size={44} />
+                      )}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-gray-900 truncate">
-                          {u.username}
+                          {u.nickname || u.username}
                         </span>
                         {u.is_admin && (
                           <span className="text-xs bg-primary-50 text-primary px-2 py-0.5 rounded-full">
@@ -236,7 +336,7 @@ export default function Admin() {
                         )}
                       </div>
                       <span className="text-xs text-gray-400">
-                        ID: {u.id}
+                        UID: @{shortUid(u.id)}
                       </span>
                     </div>
                   </div>
@@ -254,6 +354,194 @@ export default function Admin() {
               );
             })
           )}
+        </div>
+      )}
+
+      {/* 铭牌管理 */}
+      {tab === 'nameplates' && (
+        <div className="space-y-6">
+          {/* 发放铭牌表单 */}
+          <form
+            onSubmit={handleGrantNameplate}
+            className="bg-white rounded-3xl shadow-sm p-6 space-y-4"
+          >
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Plus size={20} className="text-primary" />
+              发放铭牌
+            </h2>
+
+            {loading ? (
+              <div className="text-center py-6 text-gray-400 text-sm">加载用户中...</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    选择用户
+                  </label>
+                  <select
+                    value={npUserId}
+                    onChange={(e) => setNpUserId(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-100 outline-none transition bg-white"
+                  >
+                    <option value="">请选择用户</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.nickname || u.username} (@{shortUid(u.id)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    铭牌文字
+                  </label>
+                  <input
+                    type="text"
+                    value={npText}
+                    onChange={(e) => setNpText(e.target.value)}
+                    placeholder="如：丐帮长老"
+                    className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-100 outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    背景颜色
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={npBg}
+                      onChange={(e) => setNpBg(e.target.value)}
+                      className="w-12 h-11 rounded-xl border border-gray-200 cursor-pointer p-1"
+                    />
+                    <input
+                      type="text"
+                      value={npBg}
+                      onChange={(e) => setNpBg(e.target.value)}
+                      className="flex-1 px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-100 outline-none transition"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    文字颜色
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={npColor}
+                      onChange={(e) => setNpColor(e.target.value)}
+                      className="w-12 h-11 rounded-xl border border-gray-200 cursor-pointer p-1"
+                    />
+                    <input
+                      type="text"
+                      value={npColor}
+                      onChange={(e) => setNpColor(e.target.value)}
+                      className="flex-1 px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-100 outline-none transition"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 预览 */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">预览：</span>
+              <Nameplate text={npText || '铭牌'} bgColor={npBg} textColor={npColor} />
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={submittingNp || !npUserId}
+                className="px-6 py-2.5 rounded-2xl bg-primary text-white font-medium hover:bg-primary-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Plus size={18} />
+                {submittingNp ? '发放中...' : '发放铭牌'}
+              </button>
+            </div>
+          </form>
+
+          {/* 查看用户铭牌 */}
+          <div className="bg-white rounded-3xl shadow-sm p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Eye size={20} className="text-primary" />
+              查看用户铭牌
+            </h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={viewingUserId}
+                onChange={(e) => {
+                  setViewingUserId(e.target.value);
+                  if (e.target.value) loadUserPlates(e.target.value);
+                  else setUserPlates([]);
+                }}
+                className="flex-1 min-w-[200px] px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-100 outline-none transition bg-white"
+              >
+                <option value="">选择用户查看其铭牌</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nickname || u.username} (@{shortUid(u.id)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {viewingUserId && (
+              loadingPlates ? (
+                <div className="text-center py-6 text-gray-400 text-sm">加载中...</div>
+              ) : userPlates.length === 0 ? (
+                <p className="text-sm text-gray-400">该用户暂无铭牌。</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {userPlates.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center gap-2 bg-gray-50 rounded-2xl pl-1 pr-2 py-1"
+                    >
+                      <Nameplate
+                        text={p.text}
+                        bgColor={p.bg_color}
+                        textColor={p.text_color}
+                      />
+                      {p.is_active && (
+                        <span className="text-xs text-primary">佩戴中</span>
+                      )}
+                      <button
+                        onClick={() => handleRemovePlate(p.id)}
+                        className="p-1 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition"
+                        title="删除铭牌"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 更新管理 */}
+      {tab === 'updates' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-3xl shadow-sm p-8 text-center">
+            <Package size={48} className="mx-auto text-primary mb-3" />
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+              Minecraft 组件更新管理
+            </h2>
+            <p className="text-gray-500 text-sm mb-5">
+              在此添加、编辑、删除组件与更新内容。
+            </p>
+            <button
+              onClick={() => navigate('/admin/updates')}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-primary text-white font-medium hover:bg-primary-700 transition"
+            >
+              <ExternalLink size={18} />
+              进入组件管理
+            </button>
+          </div>
         </div>
       )}
 

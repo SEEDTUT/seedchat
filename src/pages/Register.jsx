@@ -46,9 +46,13 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🌱</div>
-          <h1 className="text-3xl font-bold text-gray-900">seedchat</h1>
-          <p className="text-gray-500 mt-2">创建账号，开始你的论坛之旅</p>
+          <img
+            src="/logo.png"
+            alt="seedchat×丐帮"
+            className="w-20 h-20 mx-auto mb-4 rounded-3xl shadow-md object-cover"
+          />
+          <h1 className="text-3xl font-bold text-gray-900">seedchat×丐帮</h1>
+          <p className="text-gray-500 mt-2">丐帮开放式社区 · 创建账号，开始你的社区之旅</p>
         </div>
 
         <form

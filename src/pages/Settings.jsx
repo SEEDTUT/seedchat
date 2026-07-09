@@ -1,8 +1,12 @@
 import { useState, useRef } from 'react';
-import { Camera, User as UserIcon, KeyRound, Check } from 'lucide-react';
+import { Camera, User as UserIcon, KeyRound, Check, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { authApi, uploadApi } from '../api';
 import { useStore } from '../store';
+import { shortUid } from '../lib/uid';
+import DefaultAvatar from '../components/DefaultAvatar';
+import { NameplateBadge } from '../components/Nameplate';
+import NameplateManager from '../components/NameplateManager';
 
 // 头像压缩：强制 300x300，居中裁剪为正方形
 function compressAvatar(file) {
@@ -47,7 +51,7 @@ function AvatarDisplay({ user }) {
   }
   return (
     <div
-      className="rounded-3xl bg-primary-100 text-primary flex items-center justify-center font-bold"
+      className="rounded-3xl overflow-hidden flex items-center justify-center"
       style={{
         maxWidth: '300px',
         maxHeight: '300px',
@@ -55,9 +59,7 @@ function AvatarDisplay({ user }) {
         height: '300px',
       }}
     >
-      <span className="text-6xl">
-        {(user?.nickname || user?.username || '?').charAt(0).toUpperCase()}
-      </span>
+      <DefaultAvatar seed={user?.id} size={300} />
     </div>
   );
 }
@@ -166,6 +168,13 @@ export default function Settings() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-6">
           <AvatarDisplay user={user} />
           <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              <span className="text-lg font-semibold text-gray-900">
+                {user?.nickname || user?.username}
+              </span>
+              <NameplateBadge obj={user} />
+              <span className="text-sm text-gray-400">@{user?.uid || shortUid(user?.id)}</span>
+            </div>
             <p className="text-sm text-gray-500 mb-4">
               上传图片后将自动裁剪为 300x300 的正方形头像。支持 JPG / PNG 等常见格式。
             </p>
@@ -186,6 +195,18 @@ export default function Settings() {
             </button>
           </div>
         </div>
+      </section>
+
+      {/* 铭牌设置 */}
+      <section className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-6">
+        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-2">
+          <Tag size={20} className="text-primary" />
+          我的铭牌
+        </h2>
+        <p className="text-sm text-gray-500 mb-5">
+          选择一个铭牌佩戴，它将展示在你的昵称之后。
+        </p>
+        <NameplateManager />
       </section>
 
       {/* 昵称设置 */}

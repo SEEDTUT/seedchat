@@ -84,13 +84,18 @@ app.post('/register', async (c) => {
     const isAdmin = username === 'admin' ? 1 : 0;
     const createdAt = new Date().toISOString();
 
+    // 生成自增 UID = max(uid) + 1，按注册顺序排列
+    const uidRow = db.prepare('SELECT MAX(uid) as max_uid FROM seedchat_users').get();
+    const uid = (uidRow?.max_uid || 0) + 1;
+
     db.prepare(
-      `INSERT INTO seedchat_users (id, username, password_hash, nickname, is_admin, token, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, username, passwordHash, nickname || null, isAdmin, token, createdAt);
+      `INSERT INTO seedchat_users (id, username, password_hash, nickname, is_admin, token, uid, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, username, passwordHash, nickname || null, isAdmin, token, uid, createdAt);
 
     return c.json({
       id,
+      uid,
       username,
       nickname: nickname || null,
       is_admin: !!isAdmin,
@@ -103,7 +108,8 @@ app.post('/register', async (c) => {
 
 // POST /api/auth/login
 // body: { username, password }
-// 验证密码（PBKDF2），更新 token，返回 { id, username, nickname, avatar, is_admin, token }
+// username 字段可传入用户名或昵称进行登录
+// 验证密码（PBKDF2），更新 token，返回 { id, uid, username, nickname, avatar, is_admin, token }
 app.post('/login', async (c) => {
   try {
     const { username, password } = await c.req.json();
@@ -112,9 +118,10 @@ app.post('/login', async (c) => {
       return c.json({ error: '用户名和密码不能为空' }, 400);
     }
 
+    // 支持用户名或昵称登录
     const user = db.prepare(
-      'SELECT id, username, password_hash, nickname, avatar, is_admin FROM seedchat_users WHERE username = ?'
-    ).get(username);
+      'SELECT id, uid, username, password_hash, nickname, avatar, is_admin FROM seedchat_users WHERE username = ? OR nickname = ?'
+    ).get(username, username);
 
     if (!user) {
       return c.json({ error: '用户名或密码错误' }, 401);
@@ -136,6 +143,7 @@ app.post('/login', async (c) => {
 
     return c.json({
       id: user.id,
+      uid: user.uid,
       username: user.username,
       nickname: user.nickname,
       avatar: user.avatar,
@@ -147,16 +155,53 @@ app.post('/login', async (c) => {
   }
 });
 
+// POST /api/auth/admin-login
+// body: { password1, password2 }
+// 管理员双密码登录：两个密码必须分别匹配环境变量 ADMIN_PASSWORD_1 / ADMIN_PASSWORD_2
+// 不持久化会话（不写入用户表），返回特殊 token（'admin_' 前缀），由 auth 中间件识别
+app.post('/admin-login', async (c) => {
+  try {
+    const { password1, password2 } = await c.req.json();
+
+    if (!password1 || !password2) {
+      return c.json({ error: '两个密码都不能为空' }, 400);
+    }
+
+    const adminPassword1 = process.env.ADMIN_PASSWORD_1 || 'admin123456';
+    const adminPassword2 = process.env.ADMIN_PASSWORD_2 || 'admin654321';
+
+    if (password1 !== adminPassword1 || password2 !== adminPassword2) {
+      return c.json({ error: '管理员密码错误' }, 401);
+    }
+
+    // 生成特殊管理员会话 token，不写入数据库
+    const token = 'admin_' + nanoid();
+
+    return c.json({
+      is_admin_mode: true,
+      token,
+      uid: 0,
+      nickname: '管理员',
+      avatar: null,
+    });
+  } catch (err) {
+    return c.json({ error: err.message || '服务器内部错误' }, 500);
+  }
+});
+
 // GET /api/auth/me
-// 需要 authRequired，返回当前用户 { id, username, nickname, avatar, is_admin }
+// 需要 authRequired，返回当前用户 { id, uid, username, nickname, avatar, is_admin, is_admin_mode }
 app.get('/me', authRequired, (c) => {
   const user = c.get('user');
   return c.json({
     id: user.id,
+    uid: user.uid,
     username: user.username,
     nickname: user.nickname,
     avatar: user.avatar,
     is_admin: !!user.is_admin,
+    is_admin_mode: !!user.is_admin_mode,
+    active_nameplate_id: user.active_nameplate_id || null,
   });
 });
 

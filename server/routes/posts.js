@@ -8,13 +8,17 @@ const app = new Hono();
 app.use('*', authRequired);
 
 // GET /api/posts - 获取所有帖子，按 created_at 降序
-// 返回字段包含 nickname, avatar, image, comment_count
+// 不再使用帖子表中存储的 nickname/avatar，而是 JOIN users 表获取当前值
+// 返回字段包含 nickname, avatar, uid, active_nameplate_id, image, comment_count
+// 显示用 uid 替代 username
 app.get('/', (c) => {
   try {
     const posts = db.prepare(
-      `SELECT p.id, p.user_id, p.username, p.nickname, p.avatar, p.title, p.content, p.image, p.created_at,
+      `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id,
               (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count
        FROM seedchat_posts p
+       LEFT JOIN seedchat_users u ON p.user_id = u.id
        ORDER BY p.created_at DESC`
     ).all();
 
@@ -31,11 +35,17 @@ app.get('/', (c) => {
 
 // POST /api/posts - body: { title, content, image } -> 创建帖子
 // image 为可选的 base64 或 URL
-// 存储用户发帖时的 nickname 和 avatar
+// 不再存储 stale nickname/avatar，仅存储 user_id（展示时 JOIN users 表）
+// 管理员模式下禁止发帖
 app.post('/', async (c) => {
   try {
     const { title, content, image } = await c.req.json();
     const user = c.get('user');
+
+    // 管理员模式下不可发帖
+    if (user.is_admin_mode) {
+      return c.json({ error: '管理员模式下不可发帖' }, 403);
+    }
 
     if (!title || !content) {
       return c.json({ error: '标题和内容不能为空' }, 400);
@@ -44,17 +54,19 @@ app.post('/', async (c) => {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
+    // 只存储 user_id 与 username（用于内部关联），nickname/avatar 通过 JOIN 实时获取
     db.prepare(
       `INSERT INTO seedchat_posts (id, user_id, username, nickname, avatar, title, content, image, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, user.id, user.username, user.nickname, user.avatar, title, content, image || null, createdAt);
+       VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, ?)`
+    ).run(id, user.id, user.username, title, content, image || null, createdAt);
 
     return c.json({
       id,
       user_id: user.id,
-      username: user.username,
+      uid: user.uid,
       nickname: user.nickname,
       avatar: user.avatar,
+      active_nameplate_id: user.active_nameplate_id,
       title,
       content,
       image: image || null,
@@ -67,7 +79,7 @@ app.post('/', async (c) => {
 });
 
 // GET /api/posts/:id - 获取单个帖子详情
-// 返回该帖子的所有字段（含 view_count）以及 comment_count
+// JOIN users 表获取当前 nickname/avatar/uid/active_nameplate_id
 // 每次访问会递增该帖子的 view_count，返回值为递增后的最新浏览量
 app.get('/:id', (c) => {
   try {
@@ -83,9 +95,11 @@ app.get('/:id', (c) => {
     }
 
     const post = db.prepare(
-      `SELECT p.id, p.user_id, p.username, p.nickname, p.avatar, p.title, p.content, p.image, p.created_at, p.view_count,
+      `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at, p.view_count,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id,
               (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count
        FROM seedchat_posts p
+       LEFT JOIN seedchat_users u ON p.user_id = u.id
        WHERE p.id = ?`
     ).get(id);
 
@@ -130,15 +144,18 @@ app.delete('/:id', (c) => {
 });
 
 // GET /api/posts/:id/comments - 获取帖子的评论，按 created_at 升序
+// JOIN users 表获取当前 nickname/avatar/uid/active_nameplate_id
 app.get('/:id/comments', (c) => {
   try {
     const { id } = c.req.param();
 
     const comments = db.prepare(
-      `SELECT id, post_id, user_id, username, nickname, avatar, content, created_at
-       FROM seedchat_comments
-       WHERE post_id = ?
-       ORDER BY created_at ASC`
+      `SELECT cm.id, cm.post_id, cm.user_id, cm.content, cm.created_at,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id
+       FROM seedchat_comments cm
+       LEFT JOIN seedchat_users u ON cm.user_id = u.id
+       WHERE cm.post_id = ?
+       ORDER BY cm.created_at ASC`
     ).all(id);
 
     return c.json(comments);
@@ -148,12 +165,18 @@ app.get('/:id/comments', (c) => {
 });
 
 // POST /api/posts/:id/comments - body: { content } -> 创建评论
-// 存储用户的 username, nickname, avatar
+// 不再存储 stale nickname/avatar，仅存储 user_id（展示时 JOIN users 表）
+// 管理员模式下禁止评论
 app.post('/:id/comments', async (c) => {
   try {
     const { id } = c.req.param();
     const { content } = await c.req.json();
     const user = c.get('user');
+
+    // 管理员模式下不可评论
+    if (user.is_admin_mode) {
+      return c.json({ error: '管理员模式下不可评论' }, 403);
+    }
 
     if (!content) {
       return c.json({ error: '评论内容不能为空' }, 400);
@@ -168,18 +191,20 @@ app.post('/:id/comments', async (c) => {
     const commentId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
+    // 只存储 user_id 与 username，nickname/avatar 通过 JOIN 实时获取
     db.prepare(
       `INSERT INTO seedchat_comments (id, post_id, user_id, username, nickname, avatar, content, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(commentId, id, user.id, user.username, user.nickname, user.avatar, content, createdAt);
+       VALUES (?, ?, ?, ?, NULL, NULL, ?, ?)`
+    ).run(commentId, id, user.id, user.username, content, createdAt);
 
     return c.json({
       id: commentId,
       post_id: id,
       user_id: user.id,
-      username: user.username,
+      uid: user.uid,
       nickname: user.nickname,
       avatar: user.avatar,
+      active_nameplate_id: user.active_nameplate_id,
       content,
       created_at: createdAt,
     }, 201);

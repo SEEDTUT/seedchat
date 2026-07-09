@@ -14,6 +14,9 @@ import { toast } from 'sonner';
 import { usersApi, friendsApi } from '../api';
 import { useStore } from '../store';
 import { formatTime, formatFullTime } from '../lib/time';
+import { shortUid } from '../lib/uid';
+import DefaultAvatar from '../components/DefaultAvatar';
+import { NameplateBadge } from '../components/Nameplate';
 
 function AvatarDisplay({ user }) {
   if (user?.avatar) {
@@ -33,7 +36,7 @@ function AvatarDisplay({ user }) {
   }
   return (
     <div
-      className="rounded-3xl bg-primary-100 text-primary flex items-center justify-center font-bold"
+      className="rounded-3xl overflow-hidden flex items-center justify-center"
       style={{
         maxWidth: '300px',
         maxHeight: '300px',
@@ -41,9 +44,7 @@ function AvatarDisplay({ user }) {
         height: '300px',
       }}
     >
-      <span className="text-6xl">
-        {(user?.nickname || user?.username || '?').charAt(0).toUpperCase()}
-      </span>
+      <DefaultAvatar seed={user?.id} size={300} />
     </div>
   );
 }
@@ -195,10 +196,13 @@ export default function UserProfile() {
 
           <div className="flex-1 min-w-0">
             <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-bold text-gray-900 break-words">
-                {profile.nickname || profile.username}
-              </h1>
-              <p className="text-sm text-gray-400">@{profile.username}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-bold text-gray-900 break-words">
+                  {profile.nickname || profile.username}
+                </h1>
+                <NameplateBadge obj={profile} />
+              </div>
+              <p className="text-sm text-gray-400">@{shortUid(profile.id)}</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-gray-500">

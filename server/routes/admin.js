@@ -32,13 +32,15 @@ announcementsRoutes.get('/announcements', authRequired, (c) => {
 const adminRoutes = new Hono();
 adminRoutes.use('*', adminRequired);
 
-// GET /api/admin/posts - 获取所有帖子（包含 nickname, avatar, image）
+// GET /api/admin/posts - 获取所有帖子（JOIN users 获取当前 nickname/avatar/uid）
 adminRoutes.get('/posts', (c) => {
   try {
     const posts = db.prepare(
-      `SELECT id, user_id, username, nickname, avatar, title, content, image, created_at
-       FROM seedchat_posts
-       ORDER BY created_at DESC`
+      `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id
+       FROM seedchat_posts p
+       LEFT JOIN seedchat_users u ON p.user_id = u.id
+       ORDER BY p.created_at DESC`
     ).all();
 
     return c.json(posts);
@@ -64,13 +66,13 @@ adminRoutes.delete('/posts/:id', (c) => {
   }
 });
 
-// GET /api/admin/users - 获取所有用户（包含 nickname, avatar）
+// GET /api/admin/users - 获取所有用户（包含 uid, nickname, avatar）
 adminRoutes.get('/users', (c) => {
   try {
     const users = db.prepare(
-      `SELECT id, username, nickname, avatar, is_admin, created_at
+      `SELECT id, uid, username, nickname, avatar, is_admin, active_nameplate_id, created_at
        FROM seedchat_users
-       ORDER BY created_at DESC`
+       ORDER BY uid ASC`
     ).all();
 
     const result = users.map((u) => ({

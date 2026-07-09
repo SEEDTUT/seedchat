@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS seedchat_users (
   avatar TEXT,
   is_admin INTEGER DEFAULT 0,
   token TEXT,
+  uid INTEGER UNIQUE,
+  active_nameplate_id TEXT,
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 
@@ -75,5 +77,28 @@ CREATE TABLE IF NOT EXISTS seedchat_announcements (
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   is_pinned INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE TABLE IF NOT EXISTS seedchat_nameplates (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  bg_color TEXT NOT NULL DEFAULT '#6366f1',
+  text_color TEXT NOT NULL DEFAULT '#ffffff',
+  granted_by TEXT,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE TABLE IF NOT EXISTS seedchat_updates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  update_content TEXT,
+  icon TEXT,
+  demo_video TEXT,
+  component_code TEXT,
+  price_currency TEXT,
+  price_amount TEXT,
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );

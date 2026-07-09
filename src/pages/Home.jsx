@@ -15,6 +15,9 @@ import { toast } from 'sonner';
 import { postsApi, announcementsApi, uploadApi } from '../api';
 import { useStore } from '../store';
 import { formatTime } from '../lib/time';
+import { shortUid } from '../lib/uid';
+import DefaultAvatar from '../components/DefaultAvatar';
+import { NameplateBadge } from '../components/Nameplate';
 
 // 图片压缩：限制最大宽度/高度
 function compressImage(file, maxSize) {
@@ -93,23 +96,18 @@ function renderContentWithLinks(content) {
   );
 }
 
-function Avatar({ user, size = 'w-10 h-10' }) {
+function Avatar({ user, size = 40 }) {
   if (user?.avatar) {
     return (
       <img
         src={user.avatar}
         alt=""
-        className={`${size} rounded-2xl object-cover flex-shrink-0`}
+        className="rounded-2xl object-cover flex-shrink-0"
+        style={{ width: size, height: size }}
       />
     );
   }
-  return (
-    <div
-      className={`${size} rounded-2xl bg-primary-100 text-primary flex items-center justify-center font-semibold flex-shrink-0`}
-    >
-      {(user?.nickname || user?.username || '?').charAt(0).toUpperCase()}
-    </div>
-  );
+  return <DefaultAvatar seed={user?.id} size={size} />;
 }
 
 function PostImage({ src }) {
@@ -215,6 +213,7 @@ function PostCard({ post, onDelete }) {
           <button onClick={openDM} title="私信" className="flex-shrink-0">
             <Avatar
               user={{
+                id: post.user_id,
                 username: post.username,
                 nickname: post.nickname,
                 avatar: post.avatar,
@@ -231,10 +230,12 @@ function PostCard({ post, onDelete }) {
                 {post.title}
               </h3>
             </button>
-            <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+            <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5 flex-wrap">
               <span className="font-medium text-gray-500">
                 {post.nickname || post.username}
               </span>
+              <NameplateBadge obj={post} />
+              <span>@{shortUid(post.user_id)}</span>
               <span>·</span>
               <span>{formatTime(post.created_at)}</span>
             </div>
@@ -308,16 +309,21 @@ function PostCard({ post, onDelete }) {
                 >
                   <Avatar
                     user={{
+                      id: c.user_id,
                       username: c.username,
                       nickname: c.nickname,
                       avatar: c.avatar,
                     }}
-                    size="w-8 h-8"
+                    size={32}
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-gray-800">
                         {c.nickname || c.username}
+                      </span>
+                      <NameplateBadge obj={c} />
+                      <span className="text-xs text-gray-400">
+                        @{shortUid(c.user_id)}
                       </span>
                       <span className="text-xs text-gray-400">
                         {formatTime(c.created_at)}
@@ -376,6 +382,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const imageInputRef = useRef(null);
+  const isAdminMode = useStore((s) => s.is_admin_mode);
 
   const loadData = async () => {
     setLoading(true);
@@ -487,7 +494,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* 发帖区域 */}
+      {/* 发帖区域（管理员模式下隐藏，管理员不能发帖） */}
+      {!isAdminMode && (
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-6 space-y-4"
@@ -557,6 +565,7 @@ export default function Home() {
           </button>
         </div>
       </form>
+      )}
 
       {/* 帖子列表 */}
       <div className="space-y-4">

@@ -1,6 +1,9 @@
 const API_BASE = '';
 
+// 优先使用管理员会话 token（sessionStorage，不持久化），其次普通 token（localStorage）
 function getAuthHeader() {
+  const adminToken = sessionStorage.getItem('seedchat_admin_token');
+  if (adminToken) return { Authorization: `Bearer ${adminToken}` };
   const token = localStorage.getItem('seedchat_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -47,6 +50,11 @@ export const authApi = {
     request('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   login: (body) =>
     request('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+  adminLogin: (password1, password2) =>
+    request('/api/auth/admin-login', {
+      method: 'POST',
+      body: JSON.stringify({ password1, password2 }),
+    }),
   me: () => request('/api/auth/me'),
   updatePassword: (body) =>
     request('/api/auth/update-password', {
@@ -157,4 +165,41 @@ export const adminApi = {
     }),
   removeAnnouncement: (id) =>
     request(`/api/admin/announcements/${id}`, { method: 'DELETE' }),
+};
+
+// Nameplates 铭牌
+export const nameplatesApi = {
+  // 获取当前用户拥有的铭牌
+  my: () => request('/api/nameplates/my'),
+  // 激活（佩戴）某个铭牌
+  activate: (id) =>
+    request(`/api/nameplates/${id}/activate`, { method: 'POST' }),
+  // 取消佩戴
+  deactivate: () =>
+    request('/api/nameplates/deactivate', { method: 'POST' }),
+  // [管理员] 给指定用户发放铭牌
+  grant: (userId, data) =>
+    request(`/api/nameplates/grant`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, ...data }),
+    }),
+  // [管理员] 获取指定用户拥有的铭牌
+  userPlates: (userId) => request(`/api/nameplates/user/${userId}`),
+  // [管理员] 删除某个铭牌
+  remove: (id) =>
+    request(`/api/nameplates/${id}`, { method: 'DELETE' }),
+};
+
+// Updates 更新 / Minecraft 组件
+export const updatesApi = {
+  list: () => request('/api/updates'),
+  get: (id) => request(`/api/updates/${id}`),
+  create: (data) =>
+    request('/api/updates', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) =>
+    request(`/api/updates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  remove: (id) => request(`/api/updates/${id}`, { method: 'DELETE' }),
 };

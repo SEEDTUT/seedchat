@@ -14,11 +14,16 @@ import {
   MessageSquare,
   AlertTriangle,
   X,
+  Tag,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { friendsApi, messagesApi, uploadApi } from '../api';
 import { useStore } from '../store';
 import { formatTime } from '../lib/time';
+import { shortUid } from '../lib/uid';
+import DefaultAvatar from '../components/DefaultAvatar';
+import { NameplateBadge } from '../components/Nameplate';
+import NameplateManager from '../components/NameplateManager';
 
 // 图片压缩：限制最大宽度/高度
 function compressImage(file, maxSize) {
@@ -61,23 +66,18 @@ function fileToBase64(file) {
   });
 }
 
-function Avatar({ user, size = 'w-11 h-11' }) {
+function Avatar({ user, size = 44 }) {
   if (user?.avatar) {
     return (
       <img
         src={user.avatar}
         alt=""
-        className={`${size} rounded-2xl object-cover flex-shrink-0`}
+        className="rounded-2xl object-cover flex-shrink-0"
+        style={{ width: size, height: size }}
       />
     );
   }
-  return (
-    <div
-      className={`${size} rounded-2xl bg-primary-100 text-primary flex items-center justify-center font-semibold flex-shrink-0`}
-    >
-      {(user?.nickname || user?.username || '?').charAt(0).toUpperCase()}
-    </div>
-  );
+  return <DefaultAvatar seed={user?.id} size={size} />;
 }
 
 function renderMessageBody(m, isMine) {
@@ -410,6 +410,15 @@ export default function Friends() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">好友</h1>
 
+      {/* 我的铭牌管理（当前用户可在此选择佩戴铭牌） */}
+      <div className="bg-white rounded-3xl shadow-sm p-5">
+        <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <Tag size={18} className="text-primary" />
+          我的铭牌
+        </h2>
+        <NameplateManager />
+      </div>
+
       {/* Tab 切换 */}
       <div className="flex gap-2 bg-white rounded-3xl shadow-sm p-2 overflow-x-auto">
         <button onClick={() => setTab('friends')} className={tabClass(tab === 'friends')}>
@@ -449,16 +458,17 @@ export default function Friends() {
                         <Avatar user={f} />
                       </button>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">
                             {f.nickname || f.username}
                           </span>
+                          <NameplateBadge obj={f} />
                           <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">
                             互关
                           </span>
                         </div>
                         <span className="text-xs text-gray-400 truncate block">
-                          @{f.username}
+                          @{shortUid(f.id)}
                         </span>
                       </div>
                     </div>
@@ -515,16 +525,17 @@ export default function Friends() {
                         <Avatar user={f} />
                       </button>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">
                             {f.nickname || f.username}
                           </span>
+                          <NameplateBadge obj={f} />
                           <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">
                             关注
                           </span>
                         </div>
                         <span className="text-xs text-gray-400 truncate block">
-                          @{f.username}
+                          @{shortUid(f.id)}
                         </span>
                       </div>
                     </div>
@@ -583,7 +594,7 @@ export default function Friends() {
                           {b.nickname || b.username}
                         </span>
                         <span className="text-xs text-gray-400 truncate block">
-                          @{b.username}
+                          @{shortUid(b.id)}
                         </span>
                       </div>
                     </div>
@@ -644,6 +655,7 @@ export default function Friends() {
                           <span className="font-medium text-gray-900 truncate">
                             {u.nickname || u.username}
                           </span>
+                          <NameplateBadge obj={u} />
                           {isMe && (
                             <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
                               我
@@ -661,7 +673,7 @@ export default function Friends() {
                           )}
                         </div>
                         <span className="text-xs text-gray-400 truncate block">
-                          @{u.username}
+                          @{shortUid(u.id)}
                         </span>
                       </div>
                     </div>
@@ -736,13 +748,16 @@ export default function Friends() {
               >
                 <ArrowLeft size={20} />
               </button>
-              <Avatar user={chatTarget} size="w-10 h-10" />
+              <Avatar user={chatTarget} size={40} />
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-gray-900 truncate">
-                  {chatTarget.nickname || chatTarget.username}
+                <div className="font-semibold text-gray-900 truncate flex items-center gap-2">
+                  <span className="truncate">
+                    {chatTarget.nickname || chatTarget.username}
+                  </span>
+                  <NameplateBadge obj={chatTarget} />
                 </div>
                 <div className="text-xs text-gray-400 truncate">
-                  @{chatTarget.username}
+                  @{shortUid(chatTarget.id)}
                 </div>
               </div>
               <button

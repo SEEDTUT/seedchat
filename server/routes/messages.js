@@ -17,18 +17,22 @@ app.get('/', (c) => {
     const conversations = db.prepare(
       `SELECT
          conv.user_id,
+         conv.uid,
          conv.username,
          conv.nickname,
          conv.avatar,
+         conv.active_nameplate_id,
          conv.last_message,
          conv.last_time,
          COALESCE(unread.unread_count, 0) AS unread_count
        FROM (
          SELECT
            other_user.id AS user_id,
+           other_user.uid AS uid,
            other_user.username AS username,
            other_user.nickname AS nickname,
            other_user.avatar AS avatar,
+           other_user.active_nameplate_id AS active_nameplate_id,
            last_msg.content AS last_message,
            last_msg.created_at AS last_time
          FROM (

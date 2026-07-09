@@ -11,6 +11,8 @@ import Settings from './pages/Settings';
 import Admin from './pages/Admin';
 import PostDetail from './pages/PostDetail';
 import UserProfile from './pages/UserProfile';
+import About from './pages/About';
+import Updates from './pages/Updates';
 
 export default function App() {
   const token = useStore((s) => s.token);
@@ -31,7 +33,11 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-5xl mb-3">🌱</div>
+          <img
+            src="/logo.png"
+            alt="seedchat×丐帮"
+            className="w-16 h-16 mx-auto mb-3 rounded-2xl shadow-md object-cover"
+          />
           <p className="text-gray-400">加载中...</p>
         </div>
       </div>
@@ -49,11 +55,14 @@ export default function App() {
           <Route path="settings" element={<Settings />} />
           <Route path="post/:id" element={<PostDetail />} />
           <Route path="user/:id" element={<UserProfile />} />
+          <Route path="about" element={<About />} />
+          <Route path="updates" element={<Updates />} />
         </Route>
       </Route>
       <Route element={<ProtectedRoute requireAdmin />}>
         <Route element={<Layout />}>
           <Route path="admin" element={<Admin />} />
+          <Route path="admin/updates" element={<Updates />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

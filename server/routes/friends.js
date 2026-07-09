@@ -15,7 +15,7 @@ app.get('/', (c) => {
     const user = c.get('user');
 
     const friends = db.prepare(
-      `SELECT u.id, u.username, u.nickname, u.avatar, f.created_at,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, f.created_at,
               (SELECT COUNT(*) FROM seedchat_friendships r
                WHERE r.follower_id = u.id AND r.followee_id = ?) > 0 AS is_mutual
        FROM seedchat_friendships f
@@ -42,7 +42,7 @@ app.get('/users', (c) => {
     const user = c.get('user');
 
     const users = db.prepare(
-      `SELECT u.id, u.username, u.nickname, u.avatar,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id,
               (SELECT COUNT(*) FROM seedchat_friendships f
                WHERE f.follower_id = ? AND f.followee_id = u.id) > 0 AS is_friend,
               (SELECT COUNT(*) FROM seedchat_friendships f
@@ -51,14 +51,16 @@ app.get('/users', (c) => {
                WHERE b.blocker_id = ? AND b.blocked_id = u.id) > 0 AS is_blocked
        FROM seedchat_users u
        WHERE u.id != ?
-       ORDER BY u.username`
+       ORDER BY u.uid`
     ).all(user.id, user.id, user.id, user.id);
 
     const result = users.map((u) => ({
       id: u.id,
+      uid: u.uid,
       username: u.username,
       nickname: u.nickname,
       avatar: u.avatar,
+      active_nameplate_id: u.active_nameplate_id,
       is_friend: !!u.is_friend,
       is_mutual: !!u.is_mutual,
       is_blocked: !!u.is_blocked,
@@ -77,7 +79,7 @@ app.get('/blocked', (c) => {
     const user = c.get('user');
 
     const blocked = db.prepare(
-      `SELECT u.id, u.username, u.nickname, u.avatar
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id
        FROM seedchat_blocks b
        JOIN seedchat_users u ON b.blocked_id = u.id
        WHERE b.blocker_id = ?

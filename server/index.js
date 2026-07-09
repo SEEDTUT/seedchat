@@ -12,6 +12,8 @@ import { announcementsRoutes, adminRoutes } from './routes/admin.js';
 import notificationsRoutes from './routes/notifications.js';
 import usersRoutes from './routes/users.js';
 import uploadRoutes from './routes/upload.js';
+import nameplatesRoutes from './routes/nameplates.js';
+import updatesRoutes from './routes/updates.js';
 
 const app = new Hono();
 
@@ -26,6 +28,8 @@ app.route('/api/admin', adminRoutes);
 app.route('/api/notifications', notificationsRoutes);
 app.route('/api/users', usersRoutes);
 app.route('/api/upload', uploadRoutes);
+app.route('/api/nameplates', nameplatesRoutes);
+app.route('/api/updates', updatesRoutes);
 
 // 静态文件
 app.use('*', serveStatic({ root: './dist' }));

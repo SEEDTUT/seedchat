@@ -14,6 +14,9 @@ import { toast } from 'sonner';
 import { postsApi } from '../api';
 import { useStore } from '../store';
 import { formatTime } from '../lib/time';
+import { shortUid } from '../lib/uid';
+import DefaultAvatar from '../components/DefaultAvatar';
+import { NameplateBadge } from '../components/Nameplate';
 
 // 内容中的 URL 解析为可点击链接（与 Home.jsx 保持一致）
 const URL_REGEX =
@@ -61,23 +64,18 @@ function renderContentWithLinks(content) {
   );
 }
 
-function Avatar({ user, size = 'w-10 h-10' }) {
+function Avatar({ user, size = 40 }) {
   if (user?.avatar) {
     return (
       <img
         src={user.avatar}
         alt=""
-        className={`${size} rounded-2xl object-cover flex-shrink-0`}
+        className="rounded-2xl object-cover flex-shrink-0"
+        style={{ width: size, height: size }}
       />
     );
   }
-  return (
-    <div
-      className={`${size} rounded-2xl bg-primary-100 text-primary flex items-center justify-center font-semibold flex-shrink-0`}
-    >
-      {(user?.nickname || user?.username || '?').charAt(0).toUpperCase()}
-    </div>
-  );
+  return <DefaultAvatar seed={user?.id} size={size} />;
 }
 
 function PostImage({ src }) {
@@ -293,6 +291,7 @@ export default function PostDetail() {
             >
               <Avatar
                 user={{
+                  id: post.user_id,
                   username: post.username,
                   nickname: post.nickname,
                   avatar: post.avatar,
@@ -310,6 +309,8 @@ export default function PostDetail() {
                 >
                   {post.nickname || post.username}
                 </button>
+                <NameplateBadge obj={post} />
+                <span>@{shortUid(post.user_id)}</span>
                 <span>·</span>
                 <span>{formatTime(post.created_at)}</span>
                 {typeof post.view_count === 'number' && (
@@ -377,16 +378,21 @@ export default function PostDetail() {
                 <div key={c.id} className="flex items-start gap-3 group">
                   <Avatar
                     user={{
+                      id: c.user_id,
                       username: c.username,
                       nickname: c.nickname,
                       avatar: c.avatar,
                     }}
-                    size="w-8 h-8"
+                    size={32}
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-gray-800">
                         {c.nickname || c.username}
+                      </span>
+                      <NameplateBadge obj={c} />
+                      <span className="text-xs text-gray-400">
+                        @{shortUid(c.user_id)}
                       </span>
                       <span className="text-xs text-gray-400">
                         {formatTime(c.created_at)}

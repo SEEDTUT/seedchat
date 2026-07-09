@@ -39,6 +39,8 @@ export function initDB() {
   addColumnIfMissing('seedchat_users', 'nickname', 'TEXT');
   addColumnIfMissing('seedchat_users', 'avatar', 'TEXT');
   addColumnIfMissing('seedchat_users', 'last_login', 'TEXT');
+  addColumnIfMissing('seedchat_users', 'uid', 'INTEGER');
+  addColumnIfMissing('seedchat_users', 'active_nameplate_id', 'TEXT');
 
   // Posts table
   addColumnIfMissing('seedchat_posts', 'nickname', 'TEXT');
@@ -48,6 +50,16 @@ export function initDB() {
 
   // Messages table
   addColumnIfMissing('seedchat_messages', 'type', "TEXT DEFAULT 'text'");
+
+  // 为已存在的、尚无 uid 的用户回填 uid（按注册顺序升序分配，max(uid)+1）
+  const usersWithoutUid = db
+    .prepare('SELECT id FROM seedchat_users WHERE uid IS NULL ORDER BY created_at ASC')
+    .all();
+  let nextUid =
+    (db.prepare('SELECT MAX(uid) as max_uid FROM seedchat_users').get()?.max_uid || 0) + 1;
+  for (const u of usersWithoutUid) {
+    db.prepare('UPDATE seedchat_users SET uid = ? WHERE id = ?').run(nextUid++, u.id);
+  }
 
   console.log('Database initialized with migrations');
 }
