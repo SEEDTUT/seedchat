@@ -10,13 +10,17 @@ import {
   Send,
   MessageCircle,
   ExternalLink,
+  Heart,
+  Share2,
+  UserPlus,
+  UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { postsApi, announcementsApi, uploadApi } from '../api';
+import { postsApi, announcementsApi, uploadApi, friendsApi } from '../api';
 import { useStore } from '../store';
 import { formatTime } from '../lib/time';
 import { shortUid } from '../lib/uid';
-import DefaultAvatar from '../components/DefaultAvatar';
+import UserAvatar from '../components/UserAvatar';
 import { NameplateBadge } from '../components/Nameplate';
 
 // 图片压缩：限制最大宽度/高度
@@ -96,20 +100,6 @@ function renderContentWithLinks(content) {
   );
 }
 
-function Avatar({ user, size = 40 }) {
-  if (user?.avatar) {
-    return (
-      <img
-        src={user.avatar}
-        alt=""
-        className="rounded-2xl object-cover flex-shrink-0"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  return <DefaultAvatar seed={user?.id} size={size} />;
-}
-
 function PostImage({ src }) {
   if (!src) return null;
   const isUrl = src.startsWith('http');
@@ -126,7 +116,7 @@ function PostImage({ src }) {
   );
 }
 
-function PostCard({ post, onDelete }) {
+function PostCard({ post, onDelete, friendsSet }) {
   const user = useStore((s) => s.user);
   const navigate = useNavigate();
 
@@ -136,7 +126,19 @@ function PostCard({ post, onDelete }) {
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
+  // 点赞状态
+  const [isLiked, setIsLiked] = useState(!!post.is_liked);
+  const [likeCount, setLikeCount] = useState(post.like_count || 0);
+  const [likeAnim, setLikeAnim] = useState(false);
+
+  // 关注状态
+  const [isFollowing, setIsFollowing] = useState(
+    friendsSet ? friendsSet.has(post.user_id) : false
+  );
+  const [followLoading, setFollowLoading] = useState(false);
+
   const canDelete = user?.is_admin || user?.id === post.user_id;
+  const isAuthor = post.user_id === user?.id;
 
   const openDM = () => {
     if (post.user_id === user?.id) {
@@ -154,6 +156,54 @@ function PostCard({ post, onDelete }) {
         },
       },
     });
+  };
+
+  const handleLike = async () => {
+    try {
+      const res = await postsApi.like(post.id);
+      setIsLiked(res.liked);
+      setLikeCount(res.like_count);
+      if (res.liked) {
+        setLikeAnim(true);
+        setTimeout(() => setLikeAnim(false), 300);
+      }
+    } catch (err) {
+      toast.error('操作失败');
+    }
+  };
+
+  const handleFollow = async () => {
+    if (followLoading) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await friendsApi.remove(post.user_id);
+        setIsFollowing(false);
+        toast.success('已取消关注');
+      } else {
+        await friendsApi.add(post.user_id);
+        setIsFollowing(true);
+        toast.success('关注成功');
+      }
+    } catch (err) {
+      toast.error(err.message || '操作失败');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/post/${post.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ url, title: post.title });
+      } catch {
+        // 用户取消分享，静默忽略
+      }
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success('链接已复制');
+    }
   };
 
   const loadComments = async () => {
@@ -212,13 +262,15 @@ function PostCard({ post, onDelete }) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <button onClick={openDM} title="私信" className="flex-shrink-0">
-            <Avatar
+            <UserAvatar
               user={{
                 id: post.user_id,
                 username: post.username,
                 nickname: post.nickname,
                 avatar: post.avatar,
+                is_online: post.is_online,
               }}
+              showOnline
             />
           </button>
           <div className="min-w-0 flex-1">
@@ -239,6 +291,29 @@ function PostCard({ post, onDelete }) {
               <span>@{shortUid(post.user_id)}</span>
               <span>·</span>
               <span>{formatTime(post.created_at)}</span>
+              {!isAuthor && (
+                <button
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                  className={`ml-1 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition disabled:opacity-60 ${
+                    isFollowing
+                      ? 'text-gray-400 bg-gray-100'
+                      : 'text-primary bg-primary-50 hover:bg-primary-100'
+                  }`}
+                >
+                  {isFollowing ? (
+                    <>
+                      <UserCheck size={12} />
+                      已关注
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={12} />
+                      关注
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -260,7 +335,21 @@ function PostCard({ post, onDelete }) {
       <PostImage src={post.image} />
 
       {/* 操作按钮 */}
-      <div className="flex items-center gap-2 mt-4">
+      <div className="flex items-center gap-2 mt-4 flex-wrap">
+        <button
+          onClick={handleLike}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-2xl text-sm transition hover:bg-red-50 active:scale-90"
+        >
+          <Heart
+            size={16}
+            className={`${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'} ${
+              likeAnim ? 'animate-like-pop' : ''
+            }`}
+          />
+          <span className={isLiked ? 'text-red-500' : 'text-gray-500'}>
+            {likeCount || ''}
+          </span>
+        </button>
         <button
           onClick={() => navigate(`/post/${post.id}`)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-sm text-primary hover:bg-primary-50 transition"
@@ -286,6 +375,14 @@ function PostCard({ post, onDelete }) {
           <MessageSquare size={16} />
           私信
         </button>
+        <button
+          onClick={handleShare}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-sm text-gray-500 hover:bg-gray-100 transition"
+          title="分享"
+        >
+          <Share2 size={16} />
+          分享
+        </button>
       </div>
 
       {/* 评论区 */}
@@ -308,7 +405,7 @@ function PostCard({ post, onDelete }) {
                   key={c.id}
                   className="flex items-start gap-3 group"
                 >
-                  <Avatar
+                  <UserAvatar
                     user={{
                       id: c.user_id,
                       username: c.username,
@@ -377,6 +474,7 @@ function PostCard({ post, onDelete }) {
 export default function Home() {
   const [posts, setPosts] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [friendsSet, setFriendsSet] = useState(new Set());
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [image, setImage] = useState('');
@@ -388,12 +486,14 @@ export default function Home() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [postsData, annData] = await Promise.all([
+      const [postsData, annData, friendsData] = await Promise.all([
         postsApi.list(),
         announcementsApi.list(),
+        friendsApi.list(),
       ]);
       setPosts(postsData || []);
       setAnnouncements(annData || []);
+      setFriendsSet(new Set((friendsData || []).map((f) => f.id)));
     } catch (err) {
       toast.error(err.message || '加载失败');
     } finally {
@@ -578,8 +678,18 @@ export default function Home() {
             <p className="text-gray-400">还没有帖子，快来发布第一条吧！</p>
           </div>
         ) : (
-          posts.map((post) => (
-            <PostCard key={post.id} post={post} onDelete={handleDelete} />
+          posts.map((post, index) => (
+            <div
+              key={post.id}
+              className="animate-fade-in-up"
+              style={{ animationDelay: `${Math.min(index * 50, 300)}ms` }}
+            >
+              <PostCard
+                post={post}
+                onDelete={handleDelete}
+                friendsSet={friendsSet}
+              />
+            </div>
           ))
         )}
       </div>

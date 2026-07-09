@@ -28,11 +28,12 @@ function getUserFromRequest(c) {
       uid: 0,
       active_nameplate_id: null,
       active_nameplate: null,
+      last_active: null,
     };
   }
 
   const user = db.prepare(
-    `SELECT u.id, u.username, u.nickname, u.avatar, u.is_admin, u.uid, u.active_nameplate_id,
+    `SELECT u.id, u.username, u.nickname, u.avatar, u.is_admin, u.uid, u.active_nameplate_id, u.last_active,
             np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
      FROM seedchat_users u
      LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
@@ -46,6 +47,13 @@ function getUserFromRequest(c) {
   user.is_admin_mode = false;
   // 构建嵌套的 active_nameplate 对象（{ text, bg_color, text_color } 或 null）
   user.active_nameplate = buildActiveNameplate(user);
+
+  // 更新用户最近活跃时间，用于在线状态判断
+  // better-sqlite3 为同步 API，UPDATE 非常快，直接内联执行
+  const nowIso = new Date().toISOString();
+  db.prepare('UPDATE seedchat_users SET last_active = ? WHERE id = ?').run(nowIso, user.id);
+  user.last_active = nowIso;
+
   return user;
 }
 

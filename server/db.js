@@ -41,6 +41,8 @@ export function initDB() {
   addColumnIfMissing('seedchat_users', 'last_login', 'TEXT');
   addColumnIfMissing('seedchat_users', 'uid', 'INTEGER');
   addColumnIfMissing('seedchat_users', 'active_nameplate_id', 'TEXT');
+  // last_active 记录用户最近一次活跃时间，用于在线状态判断（每次 API 请求更新）
+  addColumnIfMissing('seedchat_users', 'last_active', 'TEXT');
 
   // Posts table
   addColumnIfMissing('seedchat_posts', 'nickname', 'TEXT');

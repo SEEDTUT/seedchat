@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { withActiveNameplate, withActiveNameplateArray } from '../utils/nameplate.js';
+import { isOnline } from '../utils/online.js';
 
 const app = new Hono();
 
@@ -10,25 +11,37 @@ app.use('*', authRequired);
 
 // GET /api/posts - 获取所有帖子，按 created_at 降序
 // 不再使用帖子表中存储的 nickname/avatar，而是 JOIN users 表获取当前值
-// 返回字段包含 nickname, avatar, uid, active_nameplate_id, image, comment_count
+// 返回字段包含 nickname, avatar, uid, active_nameplate_id, image, comment_count,
+// like_count（点赞数）, is_liked（当前用户是否已点赞）
 // 显示用 uid 替代 username
 app.get('/', (c) => {
   try {
+    const currentUser = c.get('user');
+
     const posts = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at,
-              u.nickname, u.avatar, u.uid, u.active_nameplate_id,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.last_active,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
-              (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count
+              (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count,
+              (SELECT COUNT(*) FROM seedchat_post_likes pl WHERE pl.post_id = p.id) AS like_count,
+              (SELECT COUNT(*) FROM seedchat_post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) AS is_liked
        FROM seedchat_posts p
        LEFT JOIN seedchat_users u ON p.user_id = u.id
        LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
        ORDER BY p.created_at DESC`
-    ).all();
+    ).all(currentUser.id);
 
-    const result = posts.map((p) => ({
-      ...p,
-      comment_count: p.comment_count || 0,
-    }));
+    const result = posts.map((p) => {
+      const online = isOnline(p.last_active);
+      delete p.last_active;
+      return {
+        ...p,
+        comment_count: p.comment_count || 0,
+        like_count: p.like_count || 0,
+        is_liked: !!p.is_liked,
+        is_online: online,
+      };
+    });
 
     withActiveNameplateArray(result);
 
@@ -78,6 +91,8 @@ app.post('/', async (c) => {
       image: image || null,
       created_at: createdAt,
       comment_count: 0,
+      like_count: 0,
+      is_liked: false,
     }, 201);
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
@@ -87,9 +102,11 @@ app.post('/', async (c) => {
 // GET /api/posts/:id - 获取单个帖子详情
 // JOIN users 表获取当前 nickname/avatar/uid/active_nameplate_id
 // 每次访问会递增该帖子的 view_count，返回值为递增后的最新浏览量
+// 包含 like_count（点赞数）, is_liked（当前用户是否已点赞）
 app.get('/:id', (c) => {
   try {
     const { id } = c.req.param();
+    const currentUser = c.get('user');
 
     // 先递增浏览量
     const info = db.prepare(
@@ -102,23 +119,31 @@ app.get('/:id', (c) => {
 
     const post = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at, p.view_count,
-              u.nickname, u.avatar, u.uid, u.active_nameplate_id,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.last_active,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
-              (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count
+              (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count,
+              (SELECT COUNT(*) FROM seedchat_post_likes pl WHERE pl.post_id = p.id) AS like_count,
+              (SELECT COUNT(*) FROM seedchat_post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) AS is_liked
        FROM seedchat_posts p
        LEFT JOIN seedchat_users u ON p.user_id = u.id
        LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
        WHERE p.id = ?`
-    ).get(id);
+    ).get(currentUser.id, id);
 
     if (!post) {
       return c.json({ error: '帖子不存在' }, 404);
     }
 
+    const online = isOnline(post.last_active);
+    delete post.last_active;
+
     return c.json(withActiveNameplate({
       ...post,
       view_count: post.view_count || 0,
       comment_count: post.comment_count || 0,
+      like_count: post.like_count || 0,
+      is_liked: !!post.is_liked,
+      is_online: online,
     }));
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
@@ -146,6 +171,53 @@ app.delete('/:id', (c) => {
 
     db.prepare('DELETE FROM seedchat_posts WHERE id = ?').run(id);
     return c.json({ message: '帖子已删除' });
+  } catch (err) {
+    return c.json({ error: err.message || '服务器内部错误' }, 500);
+  }
+});
+
+// POST /api/posts/:id/like - 切换点赞状态（已点赞则取消，未点赞则点赞）
+// 返回 { liked, like_count }
+app.post('/:id/like', (c) => {
+  try {
+    const postId = c.req.param('id');
+    const user = c.get('user');
+
+    // 管理员模式下不可点赞
+    if (user.is_admin_mode) {
+      return c.json({ error: '管理员模式下不可点赞' }, 403);
+    }
+
+    // 检查帖子是否存在
+    const post = db.prepare('SELECT id FROM seedchat_posts WHERE id = ?').get(postId);
+    if (!post) {
+      return c.json({ error: '帖子不存在' }, 404);
+    }
+
+    // 检查是否已点赞
+    const existing = db.prepare(
+      'SELECT 1 FROM seedchat_post_likes WHERE post_id = ? AND user_id = ?'
+    ).get(postId, user.id);
+
+    if (existing) {
+      // 已点赞 -> 取消点赞
+      db.prepare(
+        'DELETE FROM seedchat_post_likes WHERE post_id = ? AND user_id = ?'
+      ).run(postId, user.id);
+      const likeCount = db.prepare(
+        'SELECT COUNT(*) as count FROM seedchat_post_likes WHERE post_id = ?'
+      ).get(postId).count;
+      return c.json({ liked: false, like_count: likeCount });
+    } else {
+      // 未点赞 -> 点赞
+      db.prepare(
+        'INSERT INTO seedchat_post_likes (post_id, user_id) VALUES (?, ?)'
+      ).run(postId, user.id);
+      const likeCount = db.prepare(
+        'SELECT COUNT(*) as count FROM seedchat_post_likes WHERE post_id = ?'
+      ).get(postId).count;
+      return c.json({ liked: true, like_count: likeCount });
+    }
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
   }

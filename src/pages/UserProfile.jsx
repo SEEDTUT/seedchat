@@ -15,39 +15,8 @@ import { usersApi, friendsApi } from '../api';
 import { useStore } from '../store';
 import { formatTime, formatFullTime } from '../lib/time';
 import { shortUid } from '../lib/uid';
-import DefaultAvatar from '../components/DefaultAvatar';
+import UserAvatar from '../components/UserAvatar';
 import { NameplateBadge } from '../components/Nameplate';
-
-function AvatarDisplay({ user }) {
-  if (user?.avatar) {
-    return (
-      <img
-        src={user.avatar}
-        alt="头像"
-        className="rounded-3xl object-cover"
-        style={{
-          maxWidth: '300px',
-          maxHeight: '300px',
-          width: '300px',
-          height: '300px',
-        }}
-      />
-    );
-  }
-  return (
-    <div
-      className="rounded-3xl overflow-hidden flex items-center justify-center"
-      style={{
-        maxWidth: '300px',
-        maxHeight: '300px',
-        width: '300px',
-        height: '300px',
-      }}
-    >
-      <DefaultAvatar seed={user?.id} size={300} />
-    </div>
-  );
-}
 
 function LoadingSpinner() {
   return (
@@ -191,9 +160,9 @@ export default function UserProfile() {
       </button>
 
       {/* 用户资料卡片 */}
-      <div className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-6">
+      <div className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-6 animate-fade-in-up">
         <div className="flex flex-col md:flex-row md:items-start gap-6">
-          <AvatarDisplay user={profile} />
+          <UserAvatar user={profile} size={128} showOnline />
 
           <div className="flex-1 min-w-0">
             <div className="flex flex-col gap-1">
@@ -270,11 +239,12 @@ export default function UserProfile() {
           </div>
         ) : (
           <div className="space-y-4">
-            {posts.map((post) => (
+            {posts.map((post, index) => (
               <button
                 key={post.id}
                 onClick={() => navigate(`/post/${post.id}`)}
-                className="w-full text-left bg-white rounded-3xl shadow-sm hover:shadow-md transition p-6"
+                className="w-full text-left bg-white rounded-3xl shadow-sm hover:shadow-md transition p-6 animate-fade-in-up"
+                style={{ animationDelay: `${Math.min(index * 50, 300)}ms` }}
               >
                 <h3 className="font-semibold text-gray-900 text-lg break-words">
                   {post.title}

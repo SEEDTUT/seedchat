@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { withActiveNameplateArray } from '../utils/nameplate.js';
+import { withOnlineStatusArray, isOnline } from '../utils/online.js';
 
 const app = new Hono();
 
@@ -9,7 +10,7 @@ const app = new Hono();
 app.use('*', authRequired);
 
 // GET /api/messages - 获取会话列表
-// 返回 [{ user_id, username, nickname, avatar, last_message, last_time, unread_count }]
+// 返回 [{ user_id, username, nickname, avatar, last_message, last_time, unread_count, is_online }]
 // 按最近时间排序
 app.get('/', (c) => {
   try {
@@ -26,6 +27,7 @@ app.get('/', (c) => {
          conv.nameplate_text,
          conv.nameplate_bg_color,
          conv.nameplate_text_color,
+         conv.last_active,
          conv.last_message,
          conv.last_time,
          COALESCE(unread.unread_count, 0) AS unread_count
@@ -37,6 +39,7 @@ app.get('/', (c) => {
            other_user.nickname AS nickname,
            other_user.avatar AS avatar,
            other_user.active_nameplate_id AS active_nameplate_id,
+           other_user.last_active AS last_active,
            np.text AS nameplate_text,
            np.bg_color AS nameplate_bg_color,
            np.text_color AS nameplate_text_color,
@@ -69,7 +72,10 @@ app.get('/', (c) => {
        ORDER BY conv.last_time DESC`
     ).all(currentUserId, currentUserId, currentUserId, currentUserId, currentUserId, currentUserId);
 
-    return c.json(withActiveNameplateArray(conversations));
+    withActiveNameplateArray(conversations);
+    withOnlineStatusArray(conversations);
+
+    return c.json(conversations);
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
   }
@@ -113,7 +119,7 @@ app.get('/:userId', (c) => {
     // 查询聊天对方（chat partner）的用户资料及激活铭牌
     // 将对方的 active_nameplate 附加到每条消息上，供前端聊天面板头部展示对方铭牌
     const partner = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_users u
        LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
@@ -127,6 +133,9 @@ app.get('/:userId', (c) => {
         : null;
     }
 
+    // 在线阈值：最近 2 分钟内有活跃视为在线
+    const partnerIsOnline = isOnline(partner ? partner.last_active : null);
+
     const result = messages.map((m) => ({
       ...m,
       // 附加聊天对方的基本资料与铭牌（所有消息的对方均为同一个 chat partner）
@@ -134,6 +143,7 @@ app.get('/:userId', (c) => {
       partner_nickname: partner ? partner.nickname : null,
       partner_avatar: partner ? partner.avatar : null,
       partner_active_nameplate_id: partner ? partner.active_nameplate_id : null,
+      partner_is_online: partnerIsOnline,
       active_nameplate: partnerNameplate,
     }));
 

@@ -21,7 +21,7 @@ import { friendsApi, messagesApi, uploadApi } from '../api';
 import { useStore } from '../store';
 import { formatTime } from '../lib/time';
 import { shortUid } from '../lib/uid';
-import DefaultAvatar from '../components/DefaultAvatar';
+import UserAvatar from '../components/UserAvatar';
 import { NameplateBadge } from '../components/Nameplate';
 import NameplateManager from '../components/NameplateManager';
 
@@ -64,20 +64,6 @@ function fileToBase64(file) {
     reader.onerror = () => reject(new Error('文件读取失败'));
     reader.readAsDataURL(file);
   });
-}
-
-function Avatar({ user, size = 44 }) {
-  if (user?.avatar) {
-    return (
-      <img
-        src={user.avatar}
-        alt=""
-        className="rounded-2xl object-cover flex-shrink-0"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  return <DefaultAvatar seed={user?.id} size={size} />;
 }
 
 function renderMessageBody(m, isMine) {
@@ -449,14 +435,15 @@ export default function Friends() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mutualFriends.map((f) => (
+                {mutualFriends.map((f, index) => (
                   <div
                     key={f.id}
-                    className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-5"
+                    className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-5 animate-fade-in-up"
+                    style={{ animationDelay: `${Math.min(index * 50, 300)}ms` }}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <button onClick={() => openChat(f)} title="私信">
-                        <Avatar user={f} />
+                        <UserAvatar user={f} size={44} showOnline />
                       </button>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -516,14 +503,15 @@ export default function Friends() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {oneWayFriends.map((f) => (
+                {oneWayFriends.map((f, index) => (
                   <div
                     key={f.id}
-                    className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-5"
+                    className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-5 animate-fade-in-up"
+                    style={{ animationDelay: `${Math.min(index * 50, 300)}ms` }}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <button onClick={() => openChat(f)} title="私信">
-                        <Avatar user={f} />
+                        <UserAvatar user={f} size={44} showOnline />
                       </button>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -583,13 +571,14 @@ export default function Friends() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {blocked.map((b) => (
+                {blocked.map((b, index) => (
                   <div
                     key={b.id}
-                    className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-5 flex items-center justify-between"
+                    className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-5 flex items-center justify-between animate-fade-in-up"
+                    style={{ animationDelay: `${Math.min(index * 50, 300)}ms` }}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar user={b} />
+                      <UserAvatar user={b} size={44} showOnline />
                       <div className="min-w-0">
                         <span className="font-medium text-gray-900 truncate block">
                           {b.nickname || b.username}
@@ -641,16 +630,17 @@ export default function Friends() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredUsers.map((u) => {
+              {filteredUsers.map((u, index) => {
                 const isMe = u.id === user?.id;
                 const following = !!u.is_friend;
                 return (
                   <div
                     key={u.id}
-                    className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-5"
+                    className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-5 animate-fade-in-up"
+                    style={{ animationDelay: `${Math.min(index * 50, 300)}ms` }}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar user={u} />
+                      <UserAvatar user={u} size={44} showOnline />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">
@@ -749,7 +739,7 @@ export default function Friends() {
               >
                 <ArrowLeft size={20} />
               </button>
-              <Avatar user={chatTarget} size={40} />
+              <UserAvatar user={chatTarget} size={40} showOnline />
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-gray-900 truncate flex items-center gap-2">
                   <span className="truncate">

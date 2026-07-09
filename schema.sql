@@ -102,3 +102,13 @@ CREATE TABLE IF NOT EXISTS seedchat_updates (
   price_amount TEXT,
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
+
+-- 帖子点赞表（最小化存储）
+-- 使用复合主键 (post_id, user_id)，无需单独的 id 列，无需额外索引
+-- 一个用户对同一帖子只能点赞一次
+CREATE TABLE IF NOT EXISTS seedchat_post_likes (
+  post_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  PRIMARY KEY (post_id, user_id)
+);

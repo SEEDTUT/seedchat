@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
 import { withActiveNameplate, withActiveNameplateArray } from '../utils/nameplate.js';
+import { withOnlineStatusArray, isOnline } from '../utils/online.js';
 
 const app = new Hono();
 
@@ -9,14 +10,15 @@ const app = new Hono();
 app.use('*', authRequired);
 
 // GET /api/friends - 获取当前用户的好友列表（followee）
-// 返回 [{ id, username, nickname, avatar, is_mutual, created_at }]
+// 返回 [{ id, username, nickname, avatar, is_mutual, is_online, created_at }]
 // is_mutual: 对方是否也关注了我
+// is_online: 对方最近 2 分钟内有活跃则视为在线
 app.get('/', (c) => {
   try {
     const user = c.get('user');
 
     const friends = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, f.created_at,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active, f.created_at,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_friendships r
                WHERE r.follower_id = u.id AND r.followee_id = ?) > 0 AS is_mutual
@@ -33,6 +35,7 @@ app.get('/', (c) => {
     }));
 
     withActiveNameplateArray(result);
+    withOnlineStatusArray(result);
 
     return c.json(result);
   } catch (err) {
@@ -41,13 +44,13 @@ app.get('/', (c) => {
 });
 
 // GET /api/friends/users - 获取所有用户列表（排除自己）
-// 返回 [{ id, username, nickname, avatar, is_friend, is_mutual, is_blocked }]
+// 返回 [{ id, username, nickname, avatar, is_friend, is_mutual, is_blocked, is_online }]
 app.get('/users', (c) => {
   try {
     const user = c.get('user');
 
     const users = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_friendships f
                WHERE f.follower_id = ? AND f.followee_id = u.id) > 0 AS is_friend,
@@ -77,6 +80,7 @@ app.get('/users', (c) => {
         is_friend: !!rest.is_friend,
         is_mutual: !!rest.is_mutual,
         is_blocked: !!rest.is_blocked,
+        is_online: isOnline(rest.last_active),
       };
     });
 
@@ -87,13 +91,13 @@ app.get('/users', (c) => {
 });
 
 // GET /api/friends/blocked - 获取我拉黑的用户列表
-// 返回 [{ id, username, nickname, avatar }]
+// 返回 [{ id, username, nickname, avatar, is_online }]
 app.get('/blocked', (c) => {
   try {
     const user = c.get('user');
 
     const blocked = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_blocks b
        JOIN seedchat_users u ON b.blocked_id = u.id
@@ -102,7 +106,10 @@ app.get('/blocked', (c) => {
        ORDER BY b.created_at DESC`
     ).all(user.id);
 
-    return c.json(withActiveNameplateArray(blocked));
+    withActiveNameplateArray(blocked);
+    withOnlineStatusArray(blocked);
+
+    return c.json(blocked);
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
   }

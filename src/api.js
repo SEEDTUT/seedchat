@@ -89,6 +89,7 @@ export const postsApi = {
   create: (body) =>
     request('/api/posts', { method: 'POST', body: JSON.stringify(body) }),
   remove: (id) => request(`/api/posts/${id}`, { method: 'DELETE' }),
+  like: (id) => request(`/api/posts/${id}/like`, { method: 'POST' }),
   listComments: (id) => request(`/api/posts/${id}/comments`),
   createComment: (id, body) =>
     request(`/api/posts/${id}/comments`, {

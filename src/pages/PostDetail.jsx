@@ -9,13 +9,17 @@ import {
   Eye,
   Loader2,
   FileQuestion,
+  Heart,
+  Share2,
+  UserPlus,
+  UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { postsApi } from '../api';
+import { postsApi, friendsApi } from '../api';
 import { useStore } from '../store';
 import { formatTime } from '../lib/time';
 import { shortUid } from '../lib/uid';
-import DefaultAvatar from '../components/DefaultAvatar';
+import UserAvatar from '../components/UserAvatar';
 import { NameplateBadge } from '../components/Nameplate';
 
 // 内容中的 URL 解析为可点击链接（与 Home.jsx 保持一致）
@@ -64,20 +68,6 @@ function renderContentWithLinks(content) {
   );
 }
 
-function Avatar({ user, size = 40 }) {
-  if (user?.avatar) {
-    return (
-      <img
-        src={user.avatar}
-        alt=""
-        className="rounded-2xl object-cover flex-shrink-0"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  return <DefaultAvatar seed={user?.id} size={size} />;
-}
-
 function PostImage({ src }) {
   if (!src) return null;
   const isUrl = src.startsWith('http');
@@ -117,6 +107,12 @@ export default function PostDetail() {
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
+  // 关注状态
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  // 点赞动画
+  const [likeAnim, setLikeAnim] = useState(false);
+
   const loadPost = async () => {
     setLoading(true);
     setNotFound(false);
@@ -147,11 +143,31 @@ export default function PostDetail() {
     }
   };
 
+  const loadFriends = async () => {
+    try {
+      const data = await friendsApi.list();
+      const authorId = post?.user_id;
+      setIsFollowing(
+        authorId ? (data || []).some((f) => f.id === authorId) : false
+      );
+    } catch {
+      // 忽略好友列表加载失败
+    }
+  };
+
   useEffect(() => {
     loadPost();
     loadComments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // 帖子加载完成后，检查当前用户是否已关注作者
+  useEffect(() => {
+    if (post?.user_id) {
+      loadFriends();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post?.user_id]);
 
   const goHome = () => navigate('/');
 
@@ -178,6 +194,59 @@ export default function PostDetail() {
         },
       },
     });
+  };
+
+  const handleLike = async () => {
+    if (!post) return;
+    try {
+      const res = await postsApi.like(post.id);
+      setPost((prev) =>
+        prev
+          ? { ...prev, is_liked: res.liked, like_count: res.like_count }
+          : prev
+      );
+      if (res.liked) {
+        setLikeAnim(true);
+        setTimeout(() => setLikeAnim(false), 300);
+      }
+    } catch (err) {
+      toast.error('操作失败');
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!post || followLoading) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await friendsApi.remove(post.user_id);
+        setIsFollowing(false);
+        toast.success('已取消关注');
+      } else {
+        await friendsApi.add(post.user_id);
+        setIsFollowing(true);
+        toast.success('关注成功');
+      }
+    } catch (err) {
+      toast.error(err.message || '操作失败');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!post) return;
+    const url = `${window.location.origin}/post/${post.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ url, title: post.title });
+      } catch {
+        // 用户取消分享，静默忽略
+      }
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success('链接已复制');
+    }
   };
 
   const handleAddComment = async (e) => {
@@ -290,13 +359,15 @@ export default function PostDetail() {
               title="查看主页"
               className="flex-shrink-0"
             >
-              <Avatar
+              <UserAvatar
                 user={{
                   id: post.user_id,
                   username: post.username,
                   nickname: post.nickname,
                   avatar: post.avatar,
+                  is_online: post.is_online,
                 }}
+                showOnline
               />
             </button>
             <div className="min-w-0 flex-1">
@@ -323,6 +394,29 @@ export default function PostDetail() {
                     </span>
                   </>
                 )}
+                {post.user_id !== user?.id && (
+                  <button
+                    onClick={handleFollow}
+                    disabled={followLoading}
+                    className={`ml-1 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition disabled:opacity-60 ${
+                      isFollowing
+                        ? 'text-gray-400 bg-gray-100'
+                        : 'text-primary bg-primary-50 hover:bg-primary-100'
+                    }`}
+                  >
+                    {isFollowing ? (
+                      <>
+                        <UserCheck size={12} />
+                        已关注
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={12} />
+                        关注
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -344,13 +438,35 @@ export default function PostDetail() {
         <PostImage src={post.image} />
 
         {/* 操作按钮 */}
-        <div className="flex items-center gap-2 mt-4">
+        <div className="flex items-center gap-2 mt-4 flex-wrap">
+          <button
+            onClick={handleLike}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-2xl text-sm transition hover:bg-red-50 active:scale-90"
+          >
+            <Heart
+              size={16}
+              className={`${
+                post.is_liked ? 'fill-red-500 text-red-500' : 'text-gray-500'
+              } ${likeAnim ? 'animate-like-pop' : ''}`}
+            />
+            <span className={post.is_liked ? 'text-red-500' : 'text-gray-500'}>
+              {post.like_count || ''}
+            </span>
+          </button>
           <button
             onClick={openDM}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-sm text-gray-500 hover:bg-gray-100 transition"
           >
             <MessageSquare size={16} />
             私信
+          </button>
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-sm text-gray-500 hover:bg-gray-100 transition"
+            title="分享"
+          >
+            <Share2 size={16} />
+            分享
           </button>
         </div>
       </div>
@@ -377,7 +493,7 @@ export default function PostDetail() {
                 user?.is_admin || user?.id === c.user_id;
               return (
                 <div key={c.id} className="flex items-start gap-3 group">
-                  <Avatar
+                  <UserAvatar
                     user={{
                       id: c.user_id,
                       username: c.username,

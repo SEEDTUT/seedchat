@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
 import { db } from '../db.js';
 import { authRequired } from '../middleware/auth.js';
+import { isOnline } from '../utils/online.js';
 
 const app = new Hono();
 
@@ -190,7 +191,8 @@ app.post('/admin-login', async (c) => {
 });
 
 // GET /api/auth/me
-// 需要 authRequired，返回当前用户 { id, uid, username, nickname, avatar, is_admin, is_admin_mode }
+// 需要 authRequired，返回当前用户 { id, uid, username, nickname, avatar, is_admin, is_admin_mode, last_active, is_online }
+// last_active 在 auth 中间件中已更新为当前时间，is_online 据此判断
 app.get('/me', authRequired, (c) => {
   const user = c.get('user');
   return c.json({
@@ -203,6 +205,8 @@ app.get('/me', authRequired, (c) => {
     is_admin_mode: !!user.is_admin_mode,
     active_nameplate_id: user.active_nameplate_id || null,
     active_nameplate: user.active_nameplate || null,
+    last_active: user.last_active || null,
+    is_online: isOnline(user.last_active),
   });
 });
 
