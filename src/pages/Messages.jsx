@@ -6,7 +6,7 @@ import {
   Video,
   ArrowLeft,
   AlertTriangle,
-  Search,
+  Loader2,
   MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -65,7 +65,7 @@ function renderMessageBody(m, isMine) {
         src={m.content}
         alt="图片"
         onClick={() => isUrl && window.open(m.content, '_blank')}
-        className={`block max-w-[220px] max-h-[220px] rounded-2xl object-cover ${
+        className={`block max-w-[260px] max-h-[260px] rounded-2xl object-cover ${
           isUrl ? 'cursor-pointer' : ''
         }`}
       />
@@ -76,7 +76,7 @@ function renderMessageBody(m, isMine) {
       <video
         src={m.content}
         controls
-        className="block max-w-[240px] max-h-[240px] rounded-2xl"
+        className="block max-w-[280px] max-h-[280px] rounded-2xl"
       />
     );
   }
@@ -86,62 +86,58 @@ function renderMessageBody(m, isMine) {
 export default function Messages() {
   const user = useStore((s) => s.user);
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const targetUserId = searchParams.get('to');
 
-  const [conversations, setConversations] = useState([]);
-  const [activeChat, setActiveChat] = useState(null);
+  const [chatTarget, setChatTarget] = useState(null);
   const [messages, setMessages] = useState([]);
   const [content, setContent] = useState('');
-  const [loadingConv, setLoadingConv] = useState(true);
-  const [loadingMsg, setLoadingMsg] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [chatDisabled, setChatDisabled] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [allUsers, setAllUsers] = useState([]);
   const lastTimestampRef = useRef('');
   const messagesEndRef = useRef(null);
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
 
-  // 加载会话列表
-  const loadConversations = useCallback(async () => {
-    try {
-      const data = await messagesApi.conversations();
-      setConversations(data || []);
-    } catch {
-      // 静默
-    } finally {
-      setLoadingConv(false);
-    }
-  }, []);
-
-  // 加载全部用户（用于搜索发起新对话）
-  const loadUsers = useCallback(async () => {
-    try {
-      const data = await friendsApi.users();
-      setAllUsers(data || []);
-    } catch {
-      // 静默
-    }
-  }, []);
-
+  // 加载聊天对象信息和消息
   useEffect(() => {
-    loadConversations();
-    loadUsers();
-  }, [loadConversations, loadUsers]);
+    if (!targetUserId) {
+      navigate('/friends');
+      return;
+    }
 
-  // 打开聊天
-  const openChat = useCallback(
-    async (target) => {
-      setActiveChat(target);
-      setMessages([]);
-      setContent('');
-      setChatDisabled(false);
-      setLoadingMsg(true);
-      setSearchParams({});
+    let cancelled = false;
+
+    const init = async () => {
+      setLoading(true);
       try {
-        const data = await messagesApi.list(target.id);
+        // 获取用户信息
+        const allUsers = await friendsApi.users();
+        const target = allUsers.find((u) => u.id === targetUserId);
+
+        if (!target) {
+          toast.error('用户不存在');
+          navigate('/friends');
+          return;
+        }
+
+        if (cancelled) return;
+
+        setChatTarget({
+          id: target.id,
+          username: target.username,
+          nickname: target.nickname,
+          avatar: target.avatar,
+          active_nameplate: target.active_nameplate,
+          is_online: target.is_online,
+          is_mutual: !!target.is_mutual,
+        });
+
+        // 加载消息
+        const data = await messagesApi.list(targetUserId);
+        if (cancelled) return;
         const list = data || [];
         setMessages(list);
         const maxTime = list.reduce(
@@ -150,51 +146,24 @@ export default function Messages() {
         );
         lastTimestampRef.current = maxTime || new Date().toISOString();
 
+        // 单条消息限制检查
         if (!target.is_mutual) {
           const sentByMe = list.some((m) => m.sender_id === user?.id);
           if (sentByMe) setChatDisabled(true);
         }
       } catch (err) {
-        toast.error(err.message || '加载消息失败');
+        if (!cancelled) toast.error(err.message || '加载失败');
       } finally {
-        setLoadingMsg(false);
+        if (!cancelled) setLoading(false);
       }
-    },
-    [setSearchParams, user?.id]
-  );
+    };
 
-  // 处理从其他页面跳转来的 ?to=userId
-  useEffect(() => {
-    const toUserId = searchParams.get('to');
-    if (toUserId && !activeChat) {
-      // 先从会话列表找
-      const existing = conversations.find((c) => c.id === toUserId);
-      if (existing) {
-        openChat(existing);
-      } else {
-        // 从全部用户找
-        const found = allUsers.find((u) => u.id === toUserId);
-        if (found) {
-          openChat({
-            id: found.id,
-            username: found.username,
-            nickname: found.nickname,
-            avatar: found.avatar,
-            active_nameplate: found.active_nameplate,
-            is_online: found.is_online,
-            is_mutual: !!found.is_mutual,
-          });
-        } else {
-          // 还没加载完，等一下
-          if (allUsers.length === 0) return;
-          // 用户不存在
-          toast.error('用户不存在');
-          setSearchParams({});
-        }
-      }
-    }
+    init();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, conversations, allUsers, activeChat]);
+  }, [targetUserId]);
 
   // 自动滚动到底部
   useEffect(() => {
@@ -203,8 +172,8 @@ export default function Messages() {
 
   // 轮询新消息
   useEffect(() => {
-    if (!activeChat) return;
-    const targetId = activeChat.id;
+    if (!chatTarget) return;
+    const targetId = chatTarget.id;
     const poll = async () => {
       try {
         const after = lastTimestampRef.current;
@@ -228,16 +197,16 @@ export default function Messages() {
     };
     const timer = setInterval(poll, 3000);
     return () => clearInterval(timer);
-  }, [activeChat]);
+  }, [chatTarget]);
 
   const handleSend = async (e) => {
     e?.preventDefault();
-    if (!content.trim() || !activeChat || sending || chatDisabled) return;
+    if (!content.trim() || !chatTarget || sending || chatDisabled) return;
     const text = content.trim();
     setContent('');
     setSending(true);
     try {
-      const newMsg = await messagesApi.send(activeChat.id, {
+      const newMsg = await messagesApi.send(chatTarget.id, {
         content: text,
         type: 'text',
       });
@@ -245,9 +214,7 @@ export default function Messages() {
       if (newMsg.created_at > lastTimestampRef.current) {
         lastTimestampRef.current = newMsg.created_at;
       }
-      if (!activeChat.is_mutual) setChatDisabled(true);
-      // 刷新会话列表
-      loadConversations();
+      if (!chatTarget.is_mutual) setChatDisabled(true);
     } catch (err) {
       if (err.code === 'SINGLE_MESSAGE_LIMIT') {
         toast.error('对方还未关注你，你只能发送一条消息');
@@ -263,7 +230,7 @@ export default function Messages() {
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !activeChat || chatDisabled) return;
+    if (!file || !chatTarget || chatDisabled) return;
     if (!file.type.startsWith('image/')) {
       toast.error('请选择图片文件');
       return;
@@ -274,7 +241,7 @@ export default function Messages() {
       const base64 = await compressImage(file, 800);
       const uploadRes = await uploadApi.image(base64);
       const url = uploadRes.url;
-      const newMsg = await messagesApi.send(activeChat.id, {
+      const newMsg = await messagesApi.send(chatTarget.id, {
         content: url,
         type: 'image',
       });
@@ -282,8 +249,7 @@ export default function Messages() {
       if (newMsg.created_at > lastTimestampRef.current) {
         lastTimestampRef.current = newMsg.created_at;
       }
-      if (!activeChat.is_mutual) setChatDisabled(true);
-      loadConversations();
+      if (!chatTarget.is_mutual) setChatDisabled(true);
     } catch (err) {
       if (err.code === 'SINGLE_MESSAGE_LIMIT') {
         toast.error('对方还未关注你，你只能发送一条消息');
@@ -300,7 +266,7 @@ export default function Messages() {
 
   const handleVideoUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !activeChat || chatDisabled) return;
+    if (!file || !chatTarget || chatDisabled) return;
     if (!file.type.startsWith('video/')) {
       toast.error('请选择视频文件');
       return;
@@ -313,7 +279,7 @@ export default function Messages() {
     setSending(true);
     try {
       const base64 = await fileToBase64(file);
-      const newMsg = await messagesApi.send(activeChat.id, {
+      const newMsg = await messagesApi.send(chatTarget.id, {
         content: base64,
         type: 'video',
       });
@@ -321,8 +287,7 @@ export default function Messages() {
       if (newMsg.created_at > lastTimestampRef.current) {
         lastTimestampRef.current = newMsg.created_at;
       }
-      if (!activeChat.is_mutual) setChatDisabled(true);
-      loadConversations();
+      if (!chatTarget.is_mutual) setChatDisabled(true);
     } catch (err) {
       if (err.code === 'SINGLE_MESSAGE_LIMIT') {
         toast.error('对方还未关注你，你只能发送一条消息');
@@ -336,336 +301,198 @@ export default function Messages() {
     }
   };
 
-  // 关闭聊天，回到列表
-  const closeChat = () => {
-    setActiveChat(null);
-    setMessages([]);
-    setContent('');
-    setChatDisabled(false);
-    lastTimestampRef.current = '';
-    loadConversations();
-  };
-
-  // 合并会话列表和搜索结果
-  const convIds = new Set(conversations.map((c) => c.id));
-  const searchResults = allUsers.filter((u) => {
-    if (convIds.has(u.id)) return false;
-    if (u.id === user?.id) return false;
-    const kw = searchKeyword.toLowerCase();
+  if (loading) {
     return (
-      (u.username || '').toLowerCase().includes(kw) ||
-      (u.nickname || '').toLowerCase().includes(kw)
+      <div className="space-y-4">
+        <button
+          onClick={() => navigate('/friends')}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-gray-600 hover:bg-gray-100 transition text-sm"
+        >
+          <ArrowLeft size={18} />
+          返回好友
+        </button>
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <Loader2 size={40} className="animate-spin text-primary mb-3" />
+          <p>加载中...</p>
+        </div>
+      </div>
     );
-  });
+  }
 
-  // 移动端：如果有 activeChat，只显示聊天面板
-  const showChatOnMobile = !!activeChat;
+  if (!chatTarget) {
+    return (
+      <div className="space-y-4">
+        <button
+          onClick={() => navigate('/friends')}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-gray-600 hover:bg-gray-100 transition text-sm"
+        >
+          <ArrowLeft size={18} />
+          返回好友
+        </button>
+        <div className="bg-white rounded-3xl shadow-sm p-12 text-center">
+          <MessageSquare size={48} className="mx-auto text-gray-300 mb-3" />
+          <p className="text-gray-400">对话不存在</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 7rem)' }}>
-      {/* 双栏布局：桌面端左右分栏，移动端单栏切换 */}
-      <div className="flex gap-4 h-full min-h-0">
-        {/* 左侧：会话列表 */}
-        <div
-          className={`${
-            showChatOnMobile ? 'hidden md:flex' : 'flex'
-          } flex-col w-full md:w-80 lg:w-96 bg-white rounded-3xl shadow-sm overflow-hidden flex-shrink-0`}
-        >
-          <div className="p-4 border-b border-gray-100">
-            <h1 className="text-lg font-bold text-gray-900 mb-3">私信</h1>
-            <div className="relative">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                type="text"
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="搜索用户..."
-                className="w-full pl-9 pr-3 py-2 rounded-2xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-100 outline-none transition text-sm"
-              />
+    <div className="space-y-4">
+      {/* 返回按钮 */}
+      <button
+        onClick={() => navigate('/friends')}
+        className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-gray-600 hover:bg-gray-100 transition text-sm"
+      >
+        <ArrowLeft size={18} />
+        返回好友
+      </button>
+
+      {/* 聊天主体 - 全页面卡片 */}
+      <div className="bg-white rounded-3xl shadow-sm flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 12rem)' }}>
+        {/* 头部 */}
+        <div className="flex items-center gap-3 p-4 border-b border-gray-100 flex-shrink-0">
+          <UserAvatar user={chatTarget} size={44} showOnline />
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold text-gray-900 truncate flex items-center gap-2">
+              <span className="truncate">
+                {chatTarget.nickname || chatTarget.username}
+              </span>
+              <NameplateBadge obj={chatTarget} />
             </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {loadingConv ? (
-              <div className="text-center py-8 text-gray-400 text-sm">
-                加载中...
-              </div>
-            ) : conversations.length === 0 && searchResults.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 text-sm px-4">
-                <MessageSquare
-                  size={36}
-                  className="mx-auto mb-2 text-gray-300"
-                />
-                {searchKeyword
-                  ? '没有找到匹配的用户'
-                  : '还没有会话，搜索用户开始聊天吧'}
-              </div>
-            ) : (
-              <div className="space-y-1 p-2">
-                {/* 已有会话 */}
-                {conversations.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => openChat(c)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-2xl transition text-left ${
-                      activeChat?.id === c.id
-                        ? 'bg-primary-50'
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <UserAvatar user={c} size={44} showOnline />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900 truncate text-sm">
-                          {c.nickname || c.username}
-                        </span>
-                        <NameplateBadge obj={c} />
-                      </div>
-                      <p className="text-xs text-gray-400 truncate">
-                        {c.last_message_type === 'image'
-                          ? '[图片]'
-                          : c.last_message_type === 'video'
-                          ? '[视频]'
-                          : c.last_message || '点击查看消息'}
-                      </p>
-                    </div>
-                    {c.last_message_at && (
-                      <span className="text-[10px] text-gray-400 flex-shrink-0">
-                        {formatTime(c.last_message_at)}
-                      </span>
-                    )}
-                  </button>
-                ))}
-
-                {/* 搜索结果：还未有会话的用户 */}
-                {searchResults.length > 0 && (
-                  <>
-                    {searchResults.length > 0 && conversations.length > 0 && (
-                      <div className="px-3 py-1.5 text-xs text-gray-400 font-medium">
-                        更多用户
-                      </div>
-                    )}
-                    {searchResults.slice(0, 20).map((u) => (
-                      <button
-                        key={u.id}
-                        onClick={() =>
-                          openChat({
-                            id: u.id,
-                            username: u.username,
-                            nickname: u.nickname,
-                            avatar: u.avatar,
-                            active_nameplate: u.active_nameplate,
-                            is_online: u.is_online,
-                            is_mutual: !!u.is_mutual,
-                          })
-                        }
-                        className="w-full flex items-center gap-3 p-3 rounded-2xl transition text-left hover:bg-gray-50"
-                      >
-                        <UserAvatar user={u} size={44} showOnline />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900 truncate text-sm">
-                              {u.nickname || u.username}
-                            </span>
-                            <NameplateBadge obj={u} />
-                          </div>
-                          <span className="text-xs text-gray-400">
-                            @{shortUid(u.id)}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </>
-                )}
-              </div>
-            )}
+            <div className="text-xs text-gray-400 truncate">
+              @{shortUid(chatTarget.id)}
+              {chatTarget.is_online ? (
+                <span className="text-green-500 ml-2">在线</span>
+              ) : null}
+            </div>
           </div>
         </div>
 
-        {/* 右侧：聊天面板 */}
-        <div
-          className={`${
-            showChatOnMobile ? 'flex' : 'hidden md:flex'
-          } flex-col flex-1 bg-white rounded-3xl shadow-sm overflow-hidden min-w-0`}
-        >
-          {activeChat ? (
-            <>
-              {/* 头部 */}
-              <div className="flex items-center gap-3 p-4 border-b border-gray-100 flex-shrink-0">
-                <button
-                  onClick={closeChat}
-                  className="p-1.5 rounded-2xl hover:bg-gray-100 transition md:hidden"
-                >
-                  <ArrowLeft size={20} />
-                </button>
-                <UserAvatar user={activeChat} size={40} showOnline />
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-gray-900 truncate flex items-center gap-2">
-                    <span className="truncate">
-                      {activeChat.nickname || activeChat.username}
-                    </span>
-                    <NameplateBadge obj={activeChat} />
-                  </div>
-                  <div className="text-xs text-gray-400 truncate">
-                    @{shortUid(activeChat.id)}
-                    {activeChat.is_online ? (
-                      <span className="text-green-500 ml-2">在线</span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
+        {/* 非互关警告 */}
+        {!chatTarget.is_mutual && (
+          <div className="flex items-start gap-2 px-4 py-2.5 bg-yellow-50 border-b border-yellow-100 text-yellow-800 text-xs flex-shrink-0">
+            <AlertTriangle size={15} className="mt-0.5 flex-shrink-0" />
+            <span>对方还未关注你，你只能发送一条消息</span>
+          </div>
+        )}
+        {chatDisabled && chatTarget.is_mutual === false && (
+          <div className="flex items-start gap-2 px-4 py-2.5 bg-red-50 border-b border-red-100 text-red-700 text-xs flex-shrink-0">
+            <AlertTriangle size={15} className="mt-0.5 flex-shrink-0" />
+            <span>已达到单条消息上限，对方关注你后可继续发送</span>
+          </div>
+        )}
 
-              {/* 非互关警告 */}
-              {!activeChat.is_mutual && (
-                <div className="flex items-start gap-2 px-4 py-2.5 bg-yellow-50 border-b border-yellow-100 text-yellow-800 text-xs flex-shrink-0">
-                  <AlertTriangle
-                    size={15}
-                    className="mt-0.5 flex-shrink-0"
-                  />
-                  <span>对方还未关注你，你只能发送一条消息</span>
-                </div>
-              )}
-              {chatDisabled && activeChat.is_mutual === false && (
-                <div className="flex items-start gap-2 px-4 py-2.5 bg-red-50 border-b border-red-100 text-red-700 text-xs flex-shrink-0">
-                  <AlertTriangle
-                    size={15}
-                    className="mt-0.5 flex-shrink-0"
-                  />
-                  <span>
-                    已达到单条消息上限，对方关注你后可继续发送
-                  </span>
-                </div>
-              )}
-
-              {/* 消息列表 */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/60 min-h-0">
-                {loadingMsg ? (
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    加载中...
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="text-center py-12 text-gray-400 text-sm">
-                    还没有消息，发送第一条消息吧
-                  </div>
-                ) : (
-                  messages.map((m) => {
-                    const isMine = m.sender_id === user?.id;
-                    const isMedia =
-                      m.type === 'image' || m.type === 'video';
-                    return (
-                      <div
-                        key={m.id}
-                        className={`flex animate-fade-in-up ${
-                          isMine ? 'justify-end' : 'justify-start'
-                        }`}
-                      >
-                        <div
-                          className={`${
-                            isMedia ? 'p-1' : 'px-4 py-2.5'
-                          } max-w-[80%] rounded-3xl ${
-                            isMedia
-                              ? isMine
-                                ? 'bg-primary-50'
-                                : 'bg-white shadow-sm'
-                              : isMine
-                              ? 'bg-primary text-white rounded-br-md'
-                              : 'bg-white text-gray-900 shadow-sm rounded-bl-md'
-                          }`}
-                        >
-                          {renderMessageBody(m, isMine)}
-                          <p
-                            className={`text-[10px] mt-1 ${
-                              isMedia
-                                ? 'text-gray-400 text-center'
-                                : isMine
-                                ? 'text-primary-100'
-                                : 'text-gray-400'
-                            }`}
-                          >
-                            {formatTime(m.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-                {uploadingImage && (
-                  <div className="flex justify-end">
-                    <div className="px-4 py-2.5 max-w-[80%] rounded-3xl bg-primary text-white rounded-br-md">
-                      <p className="text-sm">上传中...</p>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* 输入区 */}
-              <form
-                onSubmit={handleSend}
-                className="p-3 border-t border-gray-100 flex items-center gap-2 flex-shrink-0"
-              >
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <input
-                  ref={videoInputRef}
-                  type="file"
-                  accept="video/*"
-                  onChange={handleVideoUpload}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => imageInputRef.current?.click()}
-                  disabled={sending || chatDisabled}
-                  className="flex-shrink-0 w-10 h-10 rounded-2xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
-                  title="发送图片"
-                >
-                  <ImageIcon size={20} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => videoInputRef.current?.click()}
-                  disabled={sending || chatDisabled}
-                  className="flex-shrink-0 w-10 h-10 rounded-2xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
-                  title="发送视频"
-                >
-                  <Video size={20} />
-                </button>
-                <input
-                  type="text"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder={chatDisabled ? '无法继续发送' : '输入消息...'}
-                  disabled={chatDisabled}
-                  className="flex-1 min-w-0 px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-100 outline-none transition disabled:bg-gray-50 disabled:cursor-not-allowed"
-                />
-                <button
-                  type="submit"
-                  disabled={sending || !content.trim() || chatDisabled}
-                  className="flex-shrink-0 w-12 h-12 rounded-2xl bg-primary text-white hover:bg-primary-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  <Send size={20} />
-                </button>
-              </form>
-            </>
+        {/* 消息列表 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/60 min-h-0">
+          {messages.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-sm">
+              还没有消息，发送第一条消息吧
+            </div>
           ) : (
-            // 未选择聊天时的占位
-            <div className="flex-1 flex items-center justify-center p-8">
-              <div className="text-center text-gray-400">
-                <MessageSquare size={48} className="mx-auto mb-3 text-gray-300" />
-                <p className="text-sm">选择一个会话开始聊天</p>
+            messages.map((m) => {
+              const isMine = m.sender_id === user?.id;
+              const isMedia = m.type === 'image' || m.type === 'video';
+              return (
+                <div
+                  key={m.id}
+                  className={`flex animate-fade-in-up ${
+                    isMine ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  <div
+                    className={`${
+                      isMedia ? 'p-1' : 'px-4 py-2.5'
+                    } max-w-[80%] rounded-3xl ${
+                      isMedia
+                        ? isMine
+                          ? 'bg-primary-50'
+                          : 'bg-white shadow-sm'
+                        : isMine
+                        ? 'bg-primary text-white rounded-br-md'
+                        : 'bg-white text-gray-900 shadow-sm rounded-bl-md'
+                    }`}
+                  >
+                    {renderMessageBody(m, isMine)}
+                    <p
+                      className={`text-[10px] mt-1 ${
+                        isMedia
+                          ? 'text-gray-400 text-center'
+                          : isMine
+                          ? 'text-primary-100'
+                          : 'text-gray-400'
+                      }`}
+                    >
+                      {formatTime(m.created_at)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+          {uploadingImage && (
+            <div className="flex justify-end">
+              <div className="px-4 py-2.5 max-w-[80%] rounded-3xl bg-primary text-white rounded-br-md">
+                <p className="text-sm">上传中...</p>
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
+
+        {/* 输入区 */}
+        <form
+          onSubmit={handleSend}
+          className="p-3 border-t border-gray-100 flex items-center gap-2 flex-shrink-0"
+        >
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/*"
+            onChange={handleVideoUpload}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            disabled={sending || chatDisabled}
+            className="flex-shrink-0 w-10 h-10 rounded-2xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+            title="发送图片"
+          >
+            <ImageIcon size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={() => videoInputRef.current?.click()}
+            disabled={sending || chatDisabled}
+            className="flex-shrink-0 w-10 h-10 rounded-2xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+            title="发送视频"
+          >
+            <Video size={20} />
+          </button>
+          <input
+            type="text"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={chatDisabled ? '无法继续发送' : '输入消息...'}
+            disabled={chatDisabled}
+            className="flex-1 min-w-0 px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary-100 outline-none transition disabled:bg-gray-50 disabled:cursor-not-allowed"
+          />
+          <button
+            type="submit"
+            disabled={sending || !content.trim() || chatDisabled}
+            className="flex-shrink-0 w-12 h-12 rounded-2xl bg-primary text-white hover:bg-primary-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            <Send size={20} />
+          </button>
+        </form>
       </div>
     </div>
   );
