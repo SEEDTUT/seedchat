@@ -12,7 +12,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { postsApi, announcementsApi } from '../api';
+import { postsApi, announcementsApi, uploadApi } from '../api';
 import { useStore } from '../store';
 import { formatTime } from '../lib/time';
 
@@ -422,10 +422,16 @@ export default function Home() {
     }
     setSubmitting(true);
     try {
+      let imageUrl = undefined;
+      // 如果有图片，先上传到 ImgBB，拿到 URL 再发布帖子
+      if (image) {
+        const uploadRes = await uploadApi.image(image);
+        imageUrl = uploadRes.url;
+      }
       const newPost = await postsApi.create({
         title: title.trim(),
         content: content.trim(),
-        image: image || undefined,
+        image: imageUrl,
       });
       setPosts((prev) => [newPost, ...prev]);
       setTitle('');

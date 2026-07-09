@@ -11,6 +11,7 @@ import messagesRoutes from './routes/messages.js';
 import { announcementsRoutes, adminRoutes } from './routes/admin.js';
 import notificationsRoutes from './routes/notifications.js';
 import usersRoutes from './routes/users.js';
+import uploadRoutes from './routes/upload.js';
 
 const app = new Hono();
 
@@ -24,6 +25,7 @@ app.route('/api', announcementsRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/notifications', notificationsRoutes);
 app.route('/api/users', usersRoutes);
+app.route('/api/upload', uploadRoutes);
 
 // 静态文件
 app.use('*', serveStatic({ root: './dist' }));

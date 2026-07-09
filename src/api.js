@@ -65,6 +65,15 @@ export const authApi = {
     }),
 };
 
+// Upload (ImgBB 图片上传代理)
+export const uploadApi = {
+  image: (base64Image) =>
+    request('/api/upload/image', {
+      method: 'POST',
+      body: JSON.stringify({ image: base64Image }),
+    }),
+};
+
 // Posts
 export const postsApi = {
   list: () => request('/api/posts'),

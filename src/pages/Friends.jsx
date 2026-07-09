@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { friendsApi, messagesApi } from '../api';
+import { friendsApi, messagesApi, uploadApi } from '../api';
 import { useStore } from '../store';
 import { formatTime } from '../lib/time';
 
@@ -125,6 +125,7 @@ export default function Friends() {
   const [loadingMsg, setLoadingMsg] = useState(false);
   const [sending, setSending] = useState(false);
   const [chatDisabled, setChatDisabled] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const lastTimestampRef = useRef('');
   const messagesEndRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -155,7 +156,7 @@ export default function Friends() {
   // 自动滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, uploadingImage]);
 
   // 解析从首页带来的私信目标
   useEffect(() => {
@@ -282,10 +283,14 @@ export default function Friends() {
       return;
     }
     setSending(true);
+    setUploadingImage(true);
     try {
       const base64 = await compressImage(file, 800);
+      // 先上传到 ImgBB，拿到 URL 后再发送图片消息
+      const uploadRes = await uploadApi.image(base64);
+      const url = uploadRes.url;
       const newMsg = await messagesApi.send(chatTarget.id, {
-        content: base64,
+        content: url,
         type: 'image',
       });
       setMessages((prev) => [...prev, newMsg]);
@@ -302,6 +307,7 @@ export default function Friends() {
       }
     } finally {
       setSending(false);
+      setUploadingImage(false);
       if (imageInputRef.current) imageInputRef.current.value = '';
     }
   };
@@ -807,6 +813,13 @@ export default function Friends() {
                     </div>
                   );
                 })
+              )}
+              {uploadingImage && (
+                <div className="flex justify-end">
+                  <div className="px-4 py-2.5 max-w-[80%] rounded-3xl bg-primary text-white rounded-br-md">
+                    <p>上传中...</p>
+                  </div>
+                </div>
               )}
               <div ref={messagesEndRef} />
             </div>

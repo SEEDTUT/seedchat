@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Camera, User as UserIcon, KeyRound, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { authApi } from '../api';
+import { authApi, uploadApi } from '../api';
 import { useStore } from '../store';
 
 // 头像压缩：强制 300x300，居中裁剪为正方形
@@ -90,8 +90,11 @@ export default function Settings() {
     setUploadingAvatar(true);
     try {
       const base64 = await compressAvatar(file);
-      await authApi.updateAvatar({ avatar: base64 });
-      updateUser({ avatar: base64 });
+      // 先上传到 ImgBB，拿到 URL 后再更新头像
+      const uploadRes = await uploadApi.image(base64);
+      const url = uploadRes.url;
+      await authApi.updateAvatar({ avatar: url });
+      updateUser({ avatar: url });
       toast.success('头像更新成功');
     } catch (err) {
       toast.error(err.message || '头像上传失败');
