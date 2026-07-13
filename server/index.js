@@ -53,19 +53,27 @@ app.use('/default-avatar.png', async (c, next) => {
 });
 // 显式路由：直接读取并返回 default-avatar.png，避免 serveStatic MIME 问题
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const avatarPath = join(__dirname, '..', 'dist', 'default-avatar.png');
 app.get('/default-avatar.png', (c) => {
+  // 尝试从 dist 目录读取（Vite 构建后 public/ 会被复制到 dist/）
+  // 如果 dist 中没有，则从 public 目录读取
+  const distPath = join(__dirname, '..', 'dist', 'default-avatar.png');
+  const publicPath = join(__dirname, '..', 'public', 'default-avatar.png');
+  let data;
   try {
-    const data = readFileSync(avatarPath);
-    return new Response(data, {
-      headers: {
-        'Content-Type': 'image/png',
-        'Cache-Control': 'public, max-age=2592000',
-      },
-    });
+    data = readFileSync(distPath);
   } catch {
-    return c.notFound();
+    try {
+      data = readFileSync(publicPath);
+    } catch {
+      return c.notFound();
+    }
   }
+  return new Response(data, {
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=2592000',
+    },
+  });
 });
 app.use('*', serveStatic({ root: './dist' }));
 app.get('*', serveStatic({ path: './dist/index.html' }));
