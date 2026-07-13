@@ -3,7 +3,6 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Home,
   Users,
-  MessageCircle,
   Settings as SettingsIcon,
   Bell,
   X,
@@ -64,11 +63,10 @@ export default function MobileLayout() {
 
   const showAdminFeatures = user?.is_admin || isAdminMode;
 
-  // Bottom tab items
+  // Bottom tab items - 消息选项已移除，私信从好友列表进入
   const tabs = [
     { to: '/', label: '论坛', icon: Home, end: true },
     { to: '/friends', label: '好友', icon: Users, end: false },
-    { to: '/messages', label: '消息', icon: MessageCircle, end: false },
     { to: '/settings', label: '我的', icon: SettingsIcon, end: false },
   ];
 
@@ -122,9 +120,10 @@ export default function MobileLayout() {
   // Page title based on route
   const getPageTitle = () => {
     const path = location.pathname;
+    const params = new URLSearchParams(location.search);
     if (path === '/') return '论坛';
     if (path.startsWith('/friends')) return '好友';
-    if (path.match(/\/messages\/[a-f0-9-]+/)) return '私信';
+    if (path.startsWith('/messages') && params.get('to')) return '私信';
     if (path.startsWith('/messages')) return '消息';
     if (path.startsWith('/settings')) return '我的';
     if (path.startsWith('/post/')) return '帖子详情';
@@ -135,14 +134,15 @@ export default function MobileLayout() {
     return 'SeedChat';
   };
 
-  // Check if in chat room (hide bottom tab)
-  const isChatRoom = location.pathname.match(/\/messages\/[a-f0-9-]+/);
+  // Check if in chat room (hide header + bottom tab for full-screen chat)
+  const searchParams = new URLSearchParams(location.search);
+  const isChatRoom = location.pathname.startsWith('/messages') && !!searchParams.get('to');
   const isLoginPage = location.pathname === '/login' || location.pathname === '/register';
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Top bar - simple and clean */}
-      {!isLoginPage && (
+      {/* Top bar - hidden in chat room and login */}
+      {!isLoginPage && !isChatRoom && (
         <header
           className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
@@ -250,9 +250,10 @@ export default function MobileLayout() {
 
       {/* Main content */}
       <main
-        className={`flex-1 ${isLoginPage ? '' : 'pt-12'}`}
+        className={`flex-1 ${isLoginPage ? '' : isChatRoom ? '' : 'pt-12'}`}
         style={{
           paddingBottom: isChatRoom || isLoginPage ? '0' : 'calc(56px + env(safe-area-inset-bottom))',
+          height: isChatRoom ? '100vh' : undefined,
         }}
       >
         <Outlet />

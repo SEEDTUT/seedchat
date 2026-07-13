@@ -180,6 +180,18 @@ export default function Messages() {
         if (!after) return;
         const newMsgs = await messagesApi.getNew(targetId, after);
         if (newMsgs && newMsgs.length > 0) {
+          // 筛选出对方发来的消息（非本人发送）
+          const incomingMsgs = newMsgs.filter((m) => m.sender_id !== user?.id);
+          if (incomingMsgs.length > 0) {
+            // 用通知小卡片提示
+            incomingMsgs.forEach((m) => {
+              const preview = m.type === 'image' ? '[图片]' : m.type === 'video' ? '[视频]' : (m.content || '').slice(0, 40);
+              toast(`${chatTarget.nickname || chatTarget.username}: ${preview}`, {
+                duration: 3000,
+                position: 'top-center',
+              });
+            });
+          }
           setMessages((prev) => {
             const ids = new Set(prev.map((m) => m.id));
             const toAdd = newMsgs.filter((m) => !ids.has(m.id));
@@ -197,7 +209,7 @@ export default function Messages() {
     };
     const timer = setInterval(poll, 3000);
     return () => clearInterval(timer);
-  }, [chatTarget]);
+  }, [chatTarget, user?.id]);
 
   const handleSend = async (e) => {
     e?.preventDefault();
@@ -303,15 +315,17 @@ export default function Messages() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <button
-          onClick={() => navigate('/friends')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-gray-600 hover:bg-gray-100 transition text-sm"
-        >
-          <ArrowLeft size={18} />
-          返回好友
-        </button>
-        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div className="flex flex-col h-screen bg-gray-50">
+        <div className="flex items-center gap-3 p-3 border-b border-gray-100 bg-white flex-shrink-0" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}>
+          <button
+            onClick={() => navigate('/friends')}
+            className="flex items-center gap-1 text-gray-600 -ml-1"
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <span className="font-semibold text-gray-900">加载中...</span>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
           <Loader2 size={40} className="animate-spin text-primary mb-3" />
           <p>加载中...</p>
         </div>
@@ -321,53 +335,55 @@ export default function Messages() {
 
   if (!chatTarget) {
     return (
-      <div className="space-y-4">
-        <button
-          onClick={() => navigate('/friends')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-gray-600 hover:bg-gray-100 transition text-sm"
-        >
-          <ArrowLeft size={18} />
-          返回好友
-        </button>
-        <div className="bg-white rounded-3xl shadow-sm p-12 text-center">
-          <MessageSquare size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-400">对话不存在</p>
+      <div className="flex flex-col h-screen bg-gray-50">
+        <div className="flex items-center gap-3 p-3 border-b border-gray-100 bg-white flex-shrink-0" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}>
+          <button
+            onClick={() => navigate('/friends')}
+            className="flex items-center gap-1 text-gray-600 -ml-1"
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <span className="font-semibold text-gray-900">私信</span>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+          <MessageSquare size={48} className="text-gray-300 mb-3" />
+          <p>对话不存在</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* 返回按钮 */}
-      <button
-        onClick={() => navigate('/friends')}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-gray-600 hover:bg-gray-100 transition text-sm"
+    <div className="flex flex-col h-screen bg-gray-50 chat-fullscreen">
+      {/* 独立顶部栏 - 全屏聊天 */}
+      <div
+        className="flex items-center gap-3 px-3 py-3 border-b border-gray-100 bg-white flex-shrink-0"
+        style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
       >
-        <ArrowLeft size={18} />
-        返回好友
-      </button>
-
-      {/* 聊天主体 - 全页面卡片 */}
-      <div className="bg-white rounded-3xl shadow-sm flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 12rem)' }}>
-        {/* 头部 */}
-        <div className="flex items-center gap-3 p-4 border-b border-gray-100 flex-shrink-0">
-          <UserAvatar user={chatTarget} size={44} showOnline />
-          <div className="min-w-0 flex-1">
-            <div className="font-semibold text-gray-900 truncate flex items-center gap-2">
-              <span className="truncate">
-                {chatTarget.nickname || chatTarget.username}
-              </span>
-              <NameplateBadge obj={chatTarget} />
-            </div>
-            <div className="text-xs text-gray-400 truncate">
-              @{shortUid(chatTarget.id)}
-              {chatTarget.is_online ? (
-                <span className="text-green-500 ml-2">在线</span>
-              ) : null}
-            </div>
+        <button
+          onClick={() => navigate('/friends')}
+          className="flex items-center gap-1 text-gray-600 active:text-primary -ml-1"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <UserAvatar user={chatTarget} size={36} showOnline />
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold text-gray-900 truncate flex items-center gap-2">
+            <span className="truncate">
+              {chatTarget.nickname || chatTarget.username}
+            </span>
+            <NameplateBadge obj={chatTarget} />
+          </div>
+          <div className="text-xs text-gray-400 truncate">
+            @{shortUid(chatTarget.id)}
+            {chatTarget.is_online ? (
+              <span className="text-green-500 ml-2">在线</span>
+            ) : null}
           </div>
         </div>
+      </div>
 
         {/* 非互关警告 */}
         {!chatTarget.is_mutual && (
@@ -384,7 +400,7 @@ export default function Messages() {
         )}
 
         {/* 消息列表 */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/60 min-h-0">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/60 min-h-0" style={{ overscrollBehavior: 'contain' }}>
           {messages.length === 0 ? (
             <div className="text-center py-12 text-gray-400 text-sm">
               还没有消息，发送第一条消息吧
@@ -443,7 +459,8 @@ export default function Messages() {
         {/* 输入区 */}
         <form
           onSubmit={handleSend}
-          className="p-3 border-t border-gray-100 flex items-center gap-2 flex-shrink-0"
+          className="p-3 border-t border-gray-100 flex items-center gap-2 flex-shrink-0 bg-white"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
           <input
             ref={imageInputRef}
@@ -463,7 +480,7 @@ export default function Messages() {
             type="button"
             onClick={() => imageInputRef.current?.click()}
             disabled={sending || chatDisabled}
-            className="flex-shrink-0 w-10 h-10 rounded-2xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-shrink-0 w-10 h-10 rounded-2xl text-gray-500 active:bg-gray-100 transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
             title="发送图片"
           >
             <ImageIcon size={20} />
@@ -472,7 +489,7 @@ export default function Messages() {
             type="button"
             onClick={() => videoInputRef.current?.click()}
             disabled={sending || chatDisabled}
-            className="flex-shrink-0 w-10 h-10 rounded-2xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-shrink-0 w-10 h-10 rounded-2xl text-gray-500 active:bg-gray-100 transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
             title="发送视频"
           >
             <Video size={20} />
@@ -488,12 +505,11 @@ export default function Messages() {
           <button
             type="submit"
             disabled={sending || !content.trim() || chatDisabled}
-            className="flex-shrink-0 w-12 h-12 rounded-2xl bg-primary text-white hover:bg-primary-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center"
+            className="flex-shrink-0 w-12 h-12 rounded-2xl bg-primary text-white active:bg-primary-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center"
           >
             <Send size={20} />
           </button>
         </form>
-      </div>
     </div>
   );
 }
