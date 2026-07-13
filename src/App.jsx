@@ -19,8 +19,7 @@ import Messages from './pages/Messages';
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof navigator === 'undefined') return false;
-    const ua = navigator.userAgent;
-    return ua.includes('SeedChatApp') || /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(ua);
+    return navigator.userAgent.includes('SeedChatApp');
   });
   return isMobile;
 }
