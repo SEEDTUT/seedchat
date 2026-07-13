@@ -53,18 +53,22 @@ app.use('/default-avatar.png', async (c, next) => {
 });
 // 显式路由：直接读取并返回 default-avatar.png，避免 serveStatic MIME 问题
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const distAvatarPath = join(__dirname, '..', 'dist', 'default-avatar.png');
+const publicAvatarPath = join(__dirname, '..', 'public', 'default-avatar.png');
+console.log('[avatar] dist path:', distAvatarPath);
+console.log('[avatar] public path:', publicAvatarPath);
+import { existsSync, statSync } from 'fs';
+console.log('[avatar] dist exists:', existsSync(distAvatarPath));
+console.log('[avatar] public exists:', existsSync(publicAvatarPath));
 app.get('/default-avatar.png', (c) => {
-  // 尝试从 dist 目录读取（Vite 构建后 public/ 会被复制到 dist/）
-  // 如果 dist 中没有，则从 public 目录读取
-  const distPath = join(__dirname, '..', 'dist', 'default-avatar.png');
-  const publicPath = join(__dirname, '..', 'public', 'default-avatar.png');
   let data;
   try {
-    data = readFileSync(distPath);
+    data = readFileSync(distAvatarPath);
   } catch {
     try {
-      data = readFileSync(publicPath);
+      data = readFileSync(publicAvatarPath);
     } catch {
+      console.log('[avatar] file not found in either location');
       return c.notFound();
     }
   }
