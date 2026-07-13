@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store';
 import Layout from './components/Layout';
+import MobileLayout from './components/MobileLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -15,10 +16,20 @@ import About from './pages/About';
 import Updates from './pages/Updates';
 import Messages from './pages/Messages';
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent;
+    return ua.includes('SeedChatApp') || /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(ua);
+  });
+  return isMobile;
+}
+
 export default function App() {
   const token = useStore((s) => s.token);
   const loadUser = useStore((s) => s.loadUser);
   const [ready, setReady] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const init = async () => {
@@ -45,12 +56,14 @@ export default function App() {
     );
   }
 
+  const ActiveLayout = isMobile ? MobileLayout : Layout;
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route element={<ProtectedRoute />}>
-        <Route element={<Layout />}>
+        <Route element={<ActiveLayout />}>
           <Route index element={<Home />} />
           <Route path="friends" element={<Friends />} />
           <Route path="messages" element={<Messages />} />
@@ -62,7 +75,7 @@ export default function App() {
         </Route>
       </Route>
       <Route element={<ProtectedRoute requireAdmin />}>
-        <Route element={<Layout />}>
+        <Route element={<ActiveLayout />}>
           <Route path="admin" element={<Admin />} />
           <Route path="admin/updates" element={<Updates />} />
         </Route>
