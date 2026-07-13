@@ -2,11 +2,9 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { initDB } from './db.js';
 import { startCleanupJob } from './cleanup.js';
+import avatarBuffer from './avatarData.js';
 import authRoutes from './routes/auth.js';
 import postsRoutes from './routes/posts.js';
 import friendsRoutes from './routes/friends.js';
@@ -51,28 +49,9 @@ app.use('/default-avatar.png', async (c, next) => {
   await next();
   c.header('Cache-Control', 'public, max-age=2592000');
 });
-// 显式路由：直接读取并返回 default-avatar.png，避免 serveStatic MIME 问题
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const distAvatarPath = join(__dirname, '..', 'dist', 'default-avatar.png');
-const publicAvatarPath = join(__dirname, '..', 'public', 'default-avatar.png');
-console.log('[avatar] dist path:', distAvatarPath);
-console.log('[avatar] public path:', publicAvatarPath);
-import { existsSync, statSync } from 'fs';
-console.log('[avatar] dist exists:', existsSync(distAvatarPath));
-console.log('[avatar] public exists:', existsSync(publicAvatarPath));
+// 直接从嵌入的 base64 数据返回 default-avatar.png
 app.get('/default-avatar.png', (c) => {
-  let data;
-  try {
-    data = readFileSync(distAvatarPath);
-  } catch {
-    try {
-      data = readFileSync(publicAvatarPath);
-    } catch {
-      console.log('[avatar] file not found in either location');
-      return c.notFound();
-    }
-  }
-  return new Response(data, {
+  return new Response(new Uint8Array(avatarBuffer), {
     headers: {
       'Content-Type': 'image/png',
       'Cache-Control': 'public, max-age=2592000',

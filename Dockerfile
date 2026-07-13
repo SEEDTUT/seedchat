@@ -17,9 +17,6 @@ COPY server/ ./server/
 COPY schema.sql ./schema.sql
 COPY public/ ./public/
 
-# Debug: 验证 default-avatar.png 是否存在
-RUN ls -la /app/dist/default-avatar.png /app/public/default-avatar.png 2>&1 || echo "FILES NOT FOUND"
-
 RUN mkdir -p /app/data
 
 ENV NODE_ENV=production
