@@ -2,6 +2,9 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { initDB } from './db.js';
 import { startCleanupJob } from './cleanup.js';
 import authRoutes from './routes/auth.js';
@@ -47,6 +50,22 @@ app.use('/favicon.png', async (c, next) => {
 app.use('/default-avatar.png', async (c, next) => {
   await next();
   c.header('Cache-Control', 'public, max-age=2592000');
+});
+// 显式路由：直接读取并返回 default-avatar.png，避免 serveStatic MIME 问题
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const avatarPath = join(__dirname, '..', 'dist', 'default-avatar.png');
+app.get('/default-avatar.png', (c) => {
+  try {
+    const data = readFileSync(avatarPath);
+    return new Response(data, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'public, max-age=2592000',
+      },
+    });
+  } catch {
+    return c.notFound();
+  }
 });
 app.use('*', serveStatic({ root: './dist' }));
 app.get('*', serveStatic({ path: './dist/index.html' }));

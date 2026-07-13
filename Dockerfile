@@ -15,6 +15,7 @@ RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY server/ ./server/
 COPY schema.sql ./schema.sql
+COPY public/ ./public/
 
 RUN mkdir -p /app/data
 
