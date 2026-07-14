@@ -115,6 +115,78 @@ app.get('/api/export-db-chunk/:index', async (c) => {
   });
 });
 
+// Temporary DB backup to GitHub - runs once on startup
+async function backupDbToGitHub() {
+  try {
+    const { readFileSync, existsSync } = await import('fs');
+    const { join, dirname } = await import('path');
+    const { fileURLToPath } = await import('url');
+    const __d = dirname(fileURLToPath(import.meta.url));
+    const dbFile = process.env.DB_PATH || join(__d, '..', 'data', 'seedchat.db');
+    if (!existsSync(dbFile)) {
+      console.log('[backup] DB file not found, skipping backup');
+      return;
+    }
+    
+    const dbData = readFileSync(dbFile);
+    console.log('[backup] DB size:', dbData.length, 'bytes');
+    
+    const GITHUB_TOKEN = process.env.GH_BACKUP_TOKEN;
+    if (!GITHUB_TOKEN) {
+      console.log('[backup] No GH_BACKUP_TOKEN env var, skipping backup');
+      return;
+    }
+    const REPO = 'SEEDTUT/seedchat';
+    
+    // Create a draft release
+    const releaseResp = await fetch(`https://api.github.com/repos/${REPO}/releases`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'seedchat-backup',
+      },
+      body: JSON.stringify({
+        tag_name: `db-backup-${Date.now()}`,
+        name: 'Database Backup',
+        body: `Automated DB backup - ${new Date().toISOString()}`,
+        draft: true,
+      }),
+    });
+    
+    if (!releaseResp.ok) {
+      console.log('[backup] Failed to create release:', await releaseResp.text());
+      return;
+    }
+    
+    const release = await releaseResp.json();
+    const uploadUrl = release.upload_url.split('{')[0];
+    
+    // Upload DB as release asset
+    const uploadResp = await fetch(`${uploadUrl}?name=seedchat.db`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Content-Type': 'application/octet-stream',
+        'User-Agent': 'seedchat-backup',
+      },
+      body: dbData,
+    });
+    
+    if (uploadResp.ok) {
+      const asset = await uploadResp.json();
+      console.log('[backup] DB uploaded to GitHub:', asset.browser_download_url);
+    } else {
+      console.log('[backup] Upload failed:', await uploadResp.text());
+    }
+  } catch(e) {
+    console.log('[backup] Error:', e.message);
+  }
+}
+
+// Run backup after 5 seconds (let server start first)
+setTimeout(backupDbToGitHub, 5000);
+
 app.use('*', serveStatic({ root: './dist' }));
 app.get('*', serveStatic({ path: './dist/index.html' }));
 
