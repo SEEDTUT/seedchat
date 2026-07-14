@@ -60,7 +60,7 @@ app.get('/default-avatar.png', (c) => {
 });
 // Temporary DB export endpoint - will be removed after migration
 app.get('/api/export-db', async (c) => {
-  const { readFileSync, existsSync } = await import('fs');
+  const { readFileSync, existsSync, statSync } = await import('fs');
   const { join, dirname } = await import('path');
   const { fileURLToPath } = await import('url');
   const __dirname2 = dirname(fileURLToPath(import.meta.url));
@@ -74,6 +74,44 @@ app.get('/api/export-db', async (c) => {
       'Content-Type': 'application/octet-stream',
       'Content-Disposition': 'attachment; filename="seedchat.db"',
     },
+  });
+});
+
+// DB export as base64 chunks
+app.get('/api/export-db-info', async (c) => {
+  const { existsSync, statSync } = await import('fs');
+  const { join, dirname } = await import('path');
+  const { fileURLToPath } = await import('url');
+  const __dirname2 = dirname(fileURLToPath(import.meta.url));
+  const dbFile = process.env.DB_PATH || join(__dirname2, '..', 'data', 'seedchat.db');
+  if (!existsSync(dbFile)) {
+    return c.json({ error: 'DB not found' }, 404);
+  }
+  const stats = statSync(dbFile);
+  return c.json({ size: stats.size, chunks: Math.ceil(stats.size / 500000) });
+});
+
+app.get('/api/export-db-chunk/:index', async (c) => {
+  const { readFileSync, existsSync } = await import('fs');
+  const { join, dirname } = await import('path');
+  const { fileURLToPath } = await import('url');
+  const __dirname2 = dirname(fileURLToPath(import.meta.url));
+  const dbFile = process.env.DB_PATH || join(__dirname2, '..', 'data', 'seedchat.db');
+  if (!existsSync(dbFile)) {
+    return c.json({ error: 'DB not found' }, 404);
+  }
+  const chunkIndex = parseInt(c.req.param('index'));
+  const chunkSize = 500000; // 500KB per chunk
+  const data = readFileSync(dbFile);
+  const start = chunkIndex * chunkSize;
+  const end = Math.min(start + chunkSize, data.length);
+  const chunk = data.slice(start, end);
+  return c.json({
+    index: chunkIndex,
+    totalSize: data.length,
+    start,
+    end,
+    data: Buffer.from(chunk).toString('base64'),
   });
 });
 
