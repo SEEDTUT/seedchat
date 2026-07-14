@@ -58,6 +58,25 @@ app.get('/default-avatar.png', (c) => {
     },
   });
 });
+// Temporary DB export endpoint - will be removed after migration
+app.get('/api/export-db', async (c) => {
+  const { readFileSync, existsSync } = await import('fs');
+  const { join, dirname } = await import('path');
+  const { fileURLToPath } = await import('url');
+  const __dirname2 = dirname(fileURLToPath(import.meta.url));
+  const dbFile = process.env.DB_PATH || join(__dirname2, '..', 'data', 'seedchat.db');
+  if (!existsSync(dbFile)) {
+    return c.json({ error: 'DB not found' }, 404);
+  }
+  const data = readFileSync(dbFile);
+  return new Response(new Uint8Array(data), {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': 'attachment; filename="seedchat.db"',
+    },
+  });
+});
+
 app.use('*', serveStatic({ root: './dist' }));
 app.get('*', serveStatic({ path: './dist/index.html' }));
 
