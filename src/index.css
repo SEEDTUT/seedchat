@@ -73,11 +73,17 @@ body.mobile-app::-webkit-scrollbar {
   display: none;
 }
 
-/* Mobile: full width, no max-w constraint */
+/* Mobile: full width with horizontal padding */
 body.mobile-app main {
   max-width: 100% !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
+}
+
+/* Mobile: add horizontal padding to direct content children */
+body.mobile-app main > div {
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 /* Mobile: cards become flat list items */

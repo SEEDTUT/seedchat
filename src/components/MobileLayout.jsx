@@ -140,7 +140,7 @@ export default function MobileLayout() {
   const isLoginPage = location.pathname === '/login' || location.pathname === '/register';
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Top bar - hidden in chat room and login */}
       {!isLoginPage && !isChatRoom && (
         <header
@@ -250,10 +250,12 @@ export default function MobileLayout() {
 
       {/* Main content */}
       <main
-        className={`flex-1 ${isLoginPage ? '' : isChatRoom ? '' : 'pt-12'}`}
+        className={`flex-1 overflow-y-auto -webkit-overflow-scrolling-touch ${isLoginPage ? '' : isChatRoom ? '' : 'pt-12'}`}
         style={{
           paddingBottom: isChatRoom || isLoginPage ? '0' : 'calc(56px + env(safe-area-inset-bottom))',
           height: isChatRoom ? '100vh' : undefined,
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         <Outlet />
