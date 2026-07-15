@@ -131,6 +131,10 @@ export const messagesApi = {
     }),
   getNew: (userId, after) =>
     request(`/api/messages/${userId}/new?after=${encodeURIComponent(after)}`),
+  recall: (messageId) =>
+    request(`/api/messages/${messageId}/recall`, { method: 'POST' }),
+  delete: (messageId) =>
+    request(`/api/messages/${messageId}`, { method: 'DELETE' }),
 };
 
 // Notifications

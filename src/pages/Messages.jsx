@@ -89,6 +89,11 @@ export default function Messages() {
   const [searchParams] = useSearchParams();
   const targetUserId = searchParams.get('to');
 
+  // 移动端检测：仅手机客户端支持长按撤回/删除
+  const isMobileApp =
+    typeof navigator !== 'undefined' &&
+    navigator.userAgent.includes('SeedChatApp');
+
   const [chatTarget, setChatTarget] = useState(null);
   const [messages, setMessages] = useState([]);
   const [content, setContent] = useState('');
@@ -96,10 +101,13 @@ export default function Messages() {
   const [sending, setSending] = useState(false);
   const [chatDisabled, setChatDisabled] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [actionMsg, setActionMsg] = useState(null); // { msg, rect }
+  const [actionLoading, setActionLoading] = useState(false);
   const lastTimestampRef = useRef('');
   const messagesEndRef = useRef(null);
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
+  const longPressTimer = useRef(null);
 
   // 加载聊天对象信息和消息
   useEffect(() => {
@@ -313,6 +321,73 @@ export default function Messages() {
     }
   };
 
+  // === 长按撤回/删除（仅手机端）===
+  const canRecall = (msg) => {
+    if (msg.content === '消息已撤回') return false;
+    const created = new Date(msg.created_at + (msg.created_at.endsWith('Z') ? '' : 'Z')).getTime();
+    return Date.now() - created < 60 * 1000;
+  };
+
+  const handleLongPressStart = (e, msg) => {
+    if (!isMobileApp) return;
+    if (msg.sender_id !== user?.id) return;
+    if (msg.content === '消息已撤回') return;
+
+    const touch = e.touches?.[0];
+    const rect = touch
+      ? { x: touch.clientX, y: touch.clientY }
+      : { x: e.clientX, y: e.clientY };
+
+    longPressTimer.current = setTimeout(() => {
+      // 震动反馈
+      if (navigator.vibrate) navigator.vibrate(50);
+      setActionMsg({ msg, rect });
+    }, 500);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleRecall = async () => {
+    if (!actionMsg || actionLoading) return;
+    setActionLoading(true);
+    try {
+      await messagesApi.recall(actionMsg.msg.id);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === actionMsg.msg.id
+            ? { ...m, content: '消息已撤回', type: 'text' }
+            : m
+        )
+      );
+      toast.success('消息已撤回');
+      setActionMsg(null);
+    } catch (err) {
+      toast.error(err.message || '撤回失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!actionMsg || actionLoading) return;
+    setActionLoading(true);
+    try {
+      await messagesApi.delete(actionMsg.msg.id);
+      setMessages((prev) => prev.filter((m) => m.id !== actionMsg.msg.id));
+      toast.success('消息已删除');
+      setActionMsg(null);
+    } catch (err) {
+      toast.error(err.message || '删除失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col h-screen bg-gray-50">
@@ -417,6 +492,13 @@ export default function Messages() {
                   }`}
                 >
                   <div
+                    {...(isMobileApp && isMine && m.content !== '消息已撤回'
+                      ? {
+                          onTouchStart: (e) => handleLongPressStart(e, m),
+                          onTouchEnd: handleLongPressEnd,
+                          onTouchMove: handleLongPressEnd,
+                        }
+                      : {})}
                     className={`${
                       isMedia ? 'p-1' : 'px-4 py-2.5'
                     } max-w-[80%] rounded-3xl ${
@@ -510,6 +592,40 @@ export default function Messages() {
             <Send size={20} />
           </button>
         </form>
+
+      {/* 长按操作弹窗 */}
+      {actionMsg && (
+        <>
+          <div
+            className="fixed inset-0 z-50"
+            onClick={() => !actionLoading && setActionMsg(null)}
+          />
+          <div
+            className="fixed z-50 bg-white rounded-2xl shadow-2xl overflow-hidden min-w-[140px] py-1"
+            style={{
+              left: Math.min(actionMsg.rect.x - 70, window.innerWidth - 160),
+              top: Math.min(actionMsg.rect.y + 20, window.innerHeight - 160),
+            }}
+          >
+            {canRecall(actionMsg.msg) && (
+              <button
+                onClick={handleRecall}
+                disabled={actionLoading}
+                className="w-full px-6 py-3 text-left text-sm text-gray-800 active:bg-gray-100 disabled:opacity-50"
+              >
+                撤回
+              </button>
+            )}
+            <button
+              onClick={handleDelete}
+              disabled={actionLoading}
+              className="w-full px-6 py-3 text-left text-sm text-red-500 active:bg-gray-100 disabled:opacity-50"
+            >
+              删除
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

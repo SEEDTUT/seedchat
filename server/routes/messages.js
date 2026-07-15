@@ -262,4 +262,62 @@ app.post('/:userId', async (c) => {
   }
 });
 
+// POST /api/messages/:messageId/recall - 撤回消息（1分钟内，仅发送者）
+app.post('/:messageId/recall', async (c) => {
+  const user = c.get('user');
+  const messageId = c.req.param('messageId');
+
+  try {
+    const msg = await db.prepare(
+      'SELECT sender_id, created_at FROM seedchat_messages WHERE id = ?'
+    ).get(messageId);
+
+    if (!msg) {
+      return c.json({ error: '消息不存在' }, 404);
+    }
+    if (msg.sender_id !== user.id) {
+      return c.json({ error: '只能撤回自己的消息' }, 403);
+    }
+
+    const createdTime = new Date(msg.created_at + 'Z').getTime();
+    const now = Date.now();
+    if (now - createdTime > 60 * 1000) {
+      return c.json({ error: '消息发送超过1分钟，无法撤回，请使用删除', code: 'RECALL_TIMEOUT' }, 403);
+    }
+
+    await db.prepare(
+      "UPDATE seedchat_messages SET content = '消息已撤回', type = 'text' WHERE id = ?"
+    ).run(messageId);
+
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: err.message || '服务器内部错误' }, 500);
+  }
+});
+
+// DELETE /api/messages/:messageId - 删除消息（仅发送者）
+app.delete('/:messageId', async (c) => {
+  const user = c.get('user');
+  const messageId = c.req.param('messageId');
+
+  try {
+    const msg = await db.prepare(
+      'SELECT sender_id FROM seedchat_messages WHERE id = ?'
+    ).get(messageId);
+
+    if (!msg) {
+      return c.json({ error: '消息不存在' }, 404);
+    }
+    if (msg.sender_id !== user.id) {
+      return c.json({ error: '只能删除自己的消息' }, 403);
+    }
+
+    await db.prepare('DELETE FROM seedchat_messages WHERE id = ?').run(messageId);
+
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: err.message || '服务器内部错误' }, 500);
+  }
+});
+
 export default app;
