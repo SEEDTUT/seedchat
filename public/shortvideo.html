@@ -4,755 +4,282 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#000000" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>短视频</title>
 <style>
-  /* ============ 基础重置 ============ */
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%; width: 100%; background: #000; color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    overflow: hidden; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none; -webkit-font-smoothing: antialiased;
   }
-  html,
-  body {
-    height: 100%;
-    width: 100%;
-    background: #000;
-    color: #fff;
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue",
-      "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
-    overflow: hidden;
-    overscroll-behavior: none;
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-font-smoothing: antialiased;
-  }
-  img {
-    -webkit-user-drag: none;
-    user-drag: none;
-  }
+  img { -webkit-user-drag: none; user-drag: none; }
 
-  /* ============ 视频流容器（滚动吸附） ============ */
+  /* ============ 视频流容器 ============ */
   .feed {
-    height: 100vh;
-    height: 100dvh;
-    width: 100vw;
-    overflow-y: scroll;
-    overflow-x: hidden;
-    scroll-snap-type: y mandatory;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    scrollbar-width: none;
+    height: 100vh; height: 100dvh; width: 100vw;
+    overflow-y: scroll; overflow-x: hidden;
+    scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain; scrollbar-width: none;
   }
-  .feed::-webkit-scrollbar {
-    display: none;
-  }
+  .feed::-webkit-scrollbar { display: none; }
 
-  /* ============ 单个视频卡片 ============ */
+  /* ============ 视频卡片 ============ */
   .card {
-    position: relative;
-    height: 100vh;
-    height: 100dvh;
-    width: 100vw;
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
-    background-color: #000;
-    background-size: cover;
-    background-position: center;
-    overflow: hidden;
+    position: relative; height: 100vh; height: 100dvh; width: 100vw;
+    scroll-snap-align: start; scroll-snap-stop: always;
+    background-color: #000; overflow: hidden;
   }
-
-  /* 播放器层（海报 + iframe） */
   .player-wrap {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #000;
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center; background: #000;
   }
-  .player-wrap iframe {
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    background: #000;
-  }
+  .player-wrap iframe { width: 100%; height: 100%; border: 0; display: block; background: #000; }
   .player-poster {
-    position: absolute;
-    inset: 0;
-    background-size: cover;
-    background-position: center;
-    background-color: #000;
-    transition: opacity 0.3s;
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center; background-color: #000;
+    transition: opacity 0.35s ease;
   }
   .play-hint {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 76px;
-    height: 76px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid rgba(255, 255, 255, 0.75);
-    transition: opacity 0.3s;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center;
+    border: 2px solid rgba(255,255,255,0.6); transition: opacity 0.3s;
   }
-  .play-hint svg {
-    width: 34px;
-    height: 34px;
-    margin-left: 4px;
-    fill: #fff;
-  }
+  .play-hint svg { width: 28px; height: 28px; margin-left: 3px; fill: #fff; }
 
-  /* 底部渐变遮罩，增强文字可读性 */
+  /* 底部渐变遮罩 */
   .card-overlay {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 48%;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0) 100%);
-    pointer-events: none;
-    z-index: 10;
+    position: absolute; left: 0; right: 0; bottom: 0; height: 50%;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 40%, transparent 100%);
+    pointer-events: none; z-index: 10;
   }
 
-  /* ============ 顶部返回按钮 ============ */
+  /* ============ 返回按钮 ============ */
   .back-btn {
-    position: fixed;
-    top: calc(env(safe-area-inset-top, 0px) + 12px);
-    left: 12px;
-    z-index: 100;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.28);
-    border: none;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
+    position: fixed; top: calc(env(safe-area-inset-top, 0px) + 14px); left: 14px; z-index: 100;
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(0,0,0,0.3); border: none; color: #fff;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   }
-  .back-btn svg {
-    width: 24px;
-    height: 24px;
-    fill: #fff;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
-  }
-  .back-btn:active {
-    background: rgba(0, 0, 0, 0.5);
-  }
+  .back-btn svg { width: 22px; height: 22px; fill: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
+  .back-btn:active { background: rgba(0,0,0,0.5); }
 
-  /* ============ 右侧操作栏 ============ */
-  .actions {
-    position: absolute;
-    right: 12px;
-    bottom: 80px;
-    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 18px;
+  /* ============ 右侧信息栏（只读展示） ============ */
+  .side-info {
+    position: absolute; right: 14px; bottom: 90px;
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 16px;
   }
-  .action-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
+  .avatar-circle {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.8); object-fit: cover; background: #333;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.5);
   }
-
-  /* 头像 + 关注按钮 */
-  .avatar-wrap {
-    position: relative;
-    width: 48px;
-    height: 48px;
-    margin-bottom: 14px;
+  .stat-item {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
   }
-  .avatar-wrap .avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    object-fit: cover;
-    background: #333;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  .stat-item .stat-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   }
-  .follow-btn {
-    position: absolute;
-    bottom: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #fe2c55;
-    border: 2px solid #000;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: transform 0.2s, background 0.2s;
-    line-height: 1;
-  }
-  .follow-btn svg {
-    width: 12px;
-    height: 12px;
-    fill: #fff;
-  }
-  .follow-btn:active {
-    transform: translateX(-50%) scale(0.9);
-  }
-  .follow-btn.followed {
-    background: #5a5a5a;
-  }
-  .follow-btn.followed svg {
-    display: none;
-  }
-  .follow-btn.followed::after {
-    content: "\2713";
-    font-size: 12px;
-    font-weight: 700;
-  }
-
-  /* 通用图标按钮（点赞 / 评论 / 分享） */
-  .icon-btn {
-    width: 52px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    cursor: pointer;
-  }
-  .icon-btn .ic {
-    width: 38px;
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .icon-btn .ic svg {
-    width: 36px;
-    height: 36px;
-    fill: #fff;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
-    transition: transform 0.18s;
-  }
-  .icon-btn:active .ic svg {
-    transform: scale(0.85);
-  }
-  .icon-btn .count {
-    font-size: 12px;
-    color: #fff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-    font-weight: 600;
-  }
-  .icon-btn.like.liked .ic svg {
-    fill: #fe2c55;
-  }
-  .icon-btn.like.liked .ic {
-    animation: pop 0.32s ease;
-  }
-  @keyframes pop {
-    0% { transform: scale(1); }
-    45% { transform: scale(1.32); }
-    100% { transform: scale(1); }
-  }
-
-  /* 音乐旋转盘 */
-  .disc {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: #222;
-    border: 5px solid #1a1a1a;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    margin-top: 6px;
-    animation: disc-spin 8s linear infinite;
-  }
-  .disc img {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    object-fit: cover;
-  }
-  .disc svg {
-    width: 18px;
-    height: 18px;
-    fill: #bbb;
-  }
-  @keyframes disc-spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+  .stat-item .stat-icon svg { width: 20px; height: 20px; fill: rgba(255,255,255,0.9); }
+  .stat-item .stat-num {
+    font-size: 11px; color: rgba(255,255,255,0.85); font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
   }
 
   /* ============ 底部信息 ============ */
   .info {
-    position: absolute;
-    left: 12px;
-    bottom: 80px;
-    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-    right: 80px;
-    z-index: 20;
+    position: absolute; left: 16px; bottom: 90px;
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    right: 80px; z-index: 20;
   }
-  .info .author {
-    font-size: 16px;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 7px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  .info .author-line {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
   }
-  .info .author .at {
-    color: #fff;
+  .info .author-name {
+    font-size: 15px; font-weight: 700; color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7);
   }
-  .info .title {
-    font-size: 14px;
-    color: #fff;
-    line-height: 1.45;
-    margin-bottom: 5px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-    word-break: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  .info .author-badge {
+    font-size: 11px; color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.15);
+    padding: 1px 7px; border-radius: 8px;
   }
-  .info .desc {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.88);
-    line-height: 1.45;
-    word-break: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  .info .video-title {
+    font-size: 14px; color: #fff; line-height: 1.5; margin-bottom: 6px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7); word-break: break-word;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
-  .info .music-tag {
-    margin-top: 8px;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.8);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-  }
-  .info .music-tag svg {
-    width: 14px;
-    height: 14px;
-    fill: rgba(255, 255, 255, 0.85);
-    flex-shrink: 0;
-  }
-  .info .music-tag span {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+  .info .video-desc {
+    font-size: 13px; color: rgba(255,255,255,0.75); line-height: 1.5;
+    word-break: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
   }
 
-  /* ============ 评论区遮罩 + 底部面板 ============ */
+  /* ============ 评论区 ============ */
   .comment-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 200;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s, visibility 0.3s;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200;
+    opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
   }
-  .comment-overlay.show {
-    opacity: 1;
-    visibility: visible;
-  }
+  .comment-overlay.show { opacity: 1; visibility: visible; }
   .comment-panel {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 66vh;
-    background: #1c1c1e;
-    border-radius: 16px 16px 0 0;
-    z-index: 201;
-    transform: translateY(100%);
-    transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
-    display: flex;
-    flex-direction: column;
+    position: fixed; left: 0; right: 0; bottom: 0; height: 65vh;
+    background: #1a1a1c; border-radius: 14px 14px 0 0; z-index: 201;
+    transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.22,0.61,0.36,1);
+    display: flex; flex-direction: column;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .comment-panel.show {
-    transform: translateY(0);
-  }
+  .comment-panel.show { transform: translateY(0); }
   .comment-handle {
-    width: 36px;
-    height: 4px;
-    border-radius: 2px;
-    background: rgba(255, 255, 255, 0.25);
-    margin: 8px auto 0;
+    width: 32px; height: 4px; border-radius: 2px;
+    background: rgba(255,255,255,0.2); margin: 8px auto 0;
   }
   .comment-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
   }
-  .comment-header .ctitle {
-    font-size: 15px;
-    font-weight: 600;
-    color: #fff;
-  }
+  .comment-header .ctitle { font-size: 14px; font-weight: 600; color: #fff; }
   .comment-close {
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
+    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer;
   }
-  .comment-close svg {
-    width: 20px;
-    height: 20px;
-    fill: #aaa;
-  }
+  .comment-close svg { width: 18px; height: 18px; fill: #aaa; }
   .comment-list {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 6px 0;
-    overscroll-behavior: contain;
-    scrollbar-width: none;
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 0;
+    overscroll-behavior: contain; scrollbar-width: none;
   }
-  .comment-list::-webkit-scrollbar {
-    display: none;
-  }
-  .comment-item {
-    display: flex;
-    gap: 10px;
-    padding: 11px 16px;
-  }
+  .comment-list::-webkit-scrollbar { display: none; }
+  .comment-item { display: flex; gap: 10px; padding: 10px 16px; }
   .comment-item .c-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    object-fit: cover;
-    background: #333;
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; object-fit: cover; background: #333;
   }
-  .comment-item .c-body {
-    flex: 1;
-    min-width: 0;
-  }
-  .comment-item .c-name {
-    font-size: 13px;
-    color: #9b9ba4;
-    margin-bottom: 3px;
-  }
-  .comment-item .c-text {
-    font-size: 14px;
-    color: #fff;
-    line-height: 1.45;
-    word-break: break-word;
-  }
-  .comment-item .c-meta {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-top: 7px;
-  }
-  .comment-item .c-time {
-    font-size: 12px;
-    color: #777;
-  }
-  .comment-item .c-like {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: #888;
-    cursor: pointer;
-  }
-  .comment-item .c-like svg {
-    width: 14px;
-    height: 14px;
-    fill: #888;
-  }
-  .comment-item .c-like.liked svg {
-    fill: #fe2c55;
-  }
-  .comment-item .c-like.liked {
-    color: #fe2c55;
-  }
-  .comment-loading,
-  .comment-empty,
-  .comment-end {
-    padding: 40px 16px;
-    text-align: center;
-    color: #888;
-    font-size: 14px;
-  }
-  .comment-empty.tap {
-    color: #fe2c55;
-    cursor: pointer;
+  .comment-item .c-body { flex: 1; min-width: 0; }
+  .comment-item .c-name { font-size: 12px; color: #9b9ba4; margin-bottom: 3px; }
+  .comment-item .c-text { font-size: 14px; color: #e8e8e8; line-height: 1.5; word-break: break-word; }
+  .comment-item .c-meta { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+  .comment-item .c-time { font-size: 11px; color: #666; }
+  .comment-item .c-like { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #666; }
+  .comment-item .c-like svg { width: 13px; height: 13px; fill: #666; }
+  .comment-loading, .comment-empty, .comment-end {
+    padding: 40px 16px; text-align: center; color: #666; font-size: 13px;
   }
   .spinner {
-    width: 30px;
-    height: 30px;
-    border: 3px solid rgba(255, 255, 255, 0.18);
-    border-top-color: #fe2c55;
-    border-radius: 50%;
-    animation: disc-spin 0.8s linear infinite;
-    margin: 0 auto 12px;
+    width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.12);
+    border-top-color: #fb7299; border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 10px;
   }
-  .comment-input-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: #1c1c1e;
-  }
-  .comment-input-bar input {
-    flex: 1;
-    height: 38px;
-    border-radius: 19px;
-    background: #2c2c2e;
-    border: none;
-    outline: none;
-    color: #fff;
-    padding: 0 16px;
-    font-size: 14px;
-  }
-  .comment-input-bar input::placeholder {
-    color: #666;
-  }
-  .comment-input-bar .send {
-    color: #fe2c55;
-    font-size: 15px;
-    font-weight: 700;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px 6px;
-  }
-  .comment-input-bar .send:disabled {
-    color: #555;
-  }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-  /* ============ 初始加载 & Toast ============ */
+  /* ============ 加载 & 提示 ============ */
   .init-loader {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: #000;
-    z-index: 50;
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; background: #000; z-index: 50;
     transition: opacity 0.3s;
   }
-  .init-loader.hide {
-    opacity: 0;
-    pointer-events: none;
-  }
-  .init-loader .brand {
-    margin-top: 18px;
-    font-size: 15px;
-    color: #888;
-    letter-spacing: 1px;
-  }
+  .init-loader.hide { opacity: 0; pointer-events: none; }
+  .init-loader .brand { margin-top: 16px; font-size: 14px; color: #666; letter-spacing: 0.5px; }
   .toast {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.82);
-    color: #fff;
-    padding: 10px 18px;
-    border-radius: 10px;
-    font-size: 14px;
-    z-index: 999;
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-    max-width: 80%;
-    text-align: center;
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.85); color: #fff; padding: 10px 18px; border-radius: 10px;
+    font-size: 14px; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    max-width: 80%; text-align: center;
   }
-  .toast.show {
-    opacity: 1;
-  }
+  .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
-  <!-- 顶部返回按钮 -->
   <button class="back-btn" id="backBtn" aria-label="返回">
     <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" /></svg>
   </button>
-
-  <!-- 视频流 -->
   <div class="feed" id="feed"></div>
-
-  <!-- 评论区遮罩 + 面板 -->
   <div class="comment-overlay" id="commentOverlay"></div>
   <div class="comment-panel" id="commentPanel">
     <div class="comment-handle"></div>
     <div class="comment-header">
       <span class="ctitle" id="commentTitle">评论</span>
-      <div class="comment-close" id="commentClose" aria-label="关闭">
+      <div class="comment-close" id="commentClose">
         <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
       </div>
     </div>
     <div class="comment-list" id="commentList"></div>
-    <div class="comment-input-bar">
-      <input type="text" id="commentInput" placeholder="说点什么..." maxlength="200" />
-      <button class="send" id="commentSend">发送</button>
-    </div>
   </div>
-
-  <!-- 初始加载 -->
   <div class="init-loader" id="initLoader">
     <div class="spinner"></div>
     <div class="brand">正在加载精彩视频</div>
   </div>
-
-  <!-- 提示 -->
   <div class="toast" id="toast"></div>
 
   <script>
     (function () {
       "use strict";
 
-      /* ============ 内联 SVG 图标 ============ */
       var ICONS = {
-        heart:
-          '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
-        comment:
-          '<svg viewBox="0 0 24 24"><path d="M21 6h-2v9H6v2c0 .55.45 1 1 1h11l4 4V7c0-.55-.45-1-1-1zm-4 6V3c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v14l4-4h10c.55 0 1-.45 1-1z"/></svg>',
-        share:
-          '<svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>',
-        plus: '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>',
-        music:
-          '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>',
-        play:
-          '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+        heart: '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
+        comment: '<svg viewBox="0 0 24 24"><path d="M21 6h-2v9H6v2c0 .55.45 1 1 1h11l4 4V7c0-.55-.45-1-1-1zm-4 6V3c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v14l4-4h10c.55 0 1-.45 1-1z"/></svg>',
+        play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
       };
 
-      /* ============ 全局状态 ============ */
       var state = {
-        videos: [],
-        page: 1,
-        loading: false,
-        noMore: false,
-        activeIndex: -1,
-        liked: {}, // bvid -> bool
-        followed: {}, // mid -> bool
-        commentAid: null,
-        commentPage: 1,
-        commentLoading: false,
-        commentNoMore: false,
-        commentEndObserver: null,
+        videos: [], loading: false, noMore: false, activeIndex: -1,
+        commentAid: null, commentPage: 1, commentLoading: false, commentNoMore: false, commentEndObserver: null,
       };
 
-      /* ============ DOM 引用 ============ */
       var feed = document.getElementById("feed");
       var commentOverlay = document.getElementById("commentOverlay");
       var commentPanel = document.getElementById("commentPanel");
       var commentList = document.getElementById("commentList");
       var commentTitle = document.getElementById("commentTitle");
-      var commentInput = document.getElementById("commentInput");
-      var commentSend = document.getElementById("commentSend");
       var toastEl = document.getElementById("toast");
       var initLoader = document.getElementById("initLoader");
 
-      /* ============ 工具函数 ============ */
-      // 数字格式化（中式：万 / 亿）
       function formatCount(n) {
         n = Number(n) || 0;
         if (n < 10000) return String(n);
-        if (n < 100000000)
-          return (n / 10000).toFixed(1).replace(/\.0$/, "") + "万";
+        if (n < 100000000) return (n / 10000).toFixed(1).replace(/\.0$/, "") + "万";
         return (n / 100000000).toFixed(1).replace(/\.0$/, "") + "亿";
       }
 
-      // 相对时间
       function formatTime(ts) {
         ts = Number(ts) || 0;
         if (ts <= 0) return "";
-        var now = Date.now() / 1000;
-        var diff = now - ts;
+        var now = Date.now() / 1000, diff = now - ts;
         if (diff < 60) return "刚刚";
         if (diff < 3600) return Math.floor(diff / 60) + "分钟前";
         if (diff < 86400) return Math.floor(diff / 3600) + "小时前";
         if (diff < 86400 * 30) return Math.floor(diff / 86400) + "天前";
         var d = new Date(ts * 1000);
         return d.getFullYear() === new Date().getFullYear()
-          ? d.getMonth() + 1 + "月" + d.getDate() + "日"
+          ? (d.getMonth() + 1) + "月" + d.getDate() + "日"
           : d.getFullYear() + "年" + (d.getMonth() + 1) + "月" + d.getDate() + "日";
       }
 
-      // HTML 转义
       function escapeHtml(s) {
         s = s == null ? "" : String(s);
         return s.replace(/[&<>"']/g, function (c) {
-          return {
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;",
-          }[c];
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
         });
       }
 
-      // 升级 http -> https
       function https(url) {
         if (!url) return "";
         if (url.indexOf("http://") === 0) return "https://" + url.slice(5);
         return url;
       }
 
-      // Toast 提示
       var toastTimer = null;
       function toast(msg) {
         toastEl.textContent = msg;
         toastEl.classList.add("show");
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () {
-          toastEl.classList.remove("show");
-        }, 1800);
+        toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 1800);
       }
 
-      // Bilibili 播放器地址
       function playerUrl(bvid) {
-        return (
-          "https://player.bilibili.com/player.html?bvid=" +
-          encodeURIComponent(bvid) +
-          "&autoplay=true&high_quality=1&danmaku=0"
-        );
+        // danmaku=1 开启弹幕显示
+        return "https://player.bilibili.com/player.html?bvid=" + encodeURIComponent(bvid) + "&autoplay=true&high_quality=1&danmaku=1";
       }
 
-      // 评论数：优先 reply，其次 danmaku（按接口实际返回兼容）
-      function commentCount(stat) {
-        stat = stat || {};
-        if (stat.reply != null) return stat.reply;
-        return stat.danmaku || 0;
-      }
-
-      /* ============ 创建视频卡片 ============ */
       function createCard(video, index) {
         var card = document.createElement("div");
         card.className = "card";
@@ -762,178 +289,65 @@
         var pic = https(video.pic);
         var owner = video.owner || {};
         var stat = video.stat || {};
-        var mid = owner.mid;
-        var isLiked = !!state.liked[video.bvid];
-        var isFollowed = !!state.followed[mid];
-        var face = https(owner.face) || "/default-avatar.png";
+        var face = https(owner.face) || "";
 
         if (pic) card.style.backgroundImage = 'url("' + pic + '")';
 
         var html = "";
         html += '<div class="card-overlay"></div>';
 
-        // 播放器层（海报 + 播放按钮占位，激活后替换为 iframe）
+        // 播放器层
         html += '<div class="player-wrap" data-player>';
-        if (pic)
-          html +=
-            '<div class="player-poster" style="background-image:url(\'' +
-            pic +
-            "')\"></div>";
+        if (pic) html += '<div class="player-poster" style="background-image:url(\'' + pic + "')\"></div>";
         html += '<div class="play-hint">' + ICONS.play + "</div>";
         html += "</div>";
 
-        // 右侧操作栏
-        html += '<div class="actions">';
-
-        // 头像 + 关注
-        html += '<div class="action-item">';
-        html += '<div class="avatar-wrap">';
-        html +=
-          '<img class="avatar" src="' +
-          escapeHtml(face) +
-          '" onerror="this.src=\'/default-avatar.png\'" />';
-        html +=
-          '<div class="follow-btn' +
-          (isFollowed ? " followed" : "") +
-          '" data-mid="' +
-          escapeHtml(mid) +
-          '">' +
-          ICONS.plus +
-          "</div>";
-        html += "</div>";
-        html += "</div>";
-
-        // 点赞
-        html +=
-          '<div class="action-item icon-btn like' +
-          (isLiked ? " liked" : "") +
-          '">';
-        html += '<div class="ic">' + ICONS.heart + "</div>";
-        html += '<span class="count">' + formatCount(stat.like) + "</span>";
-        html += "</div>";
-
-        // 评论
-        html += '<div class="action-item icon-btn comment-btn">';
-        html += '<div class="ic">' + ICONS.comment + "</div>";
-        html +=
-          '<span class="count">' + formatCount(commentCount(stat)) + "</span>";
-        html += "</div>";
-
-        // 分享
-        html += '<div class="action-item icon-btn share-btn">';
-        html += '<div class="ic">' + ICONS.share + "</div>";
-        html += '<span class="count">分享</span>';
-        html += "</div>";
-
-        // 音乐盘
-        html += '<div class="disc">';
-        html += pic
-          ? '<img src="' + escapeHtml(pic) + '" />'
-          : ICONS.music;
-        html += "</div>";
-
+        // 右侧信息栏（只读展示，无交互）
+        html += '<div class="side-info">';
+        if (face) {
+          html += '<img class="avatar-circle" src="' + escapeHtml(face) + '" onerror="this.style.display=\'none\'" />';
+        }
+        // 点赞数（仅展示）
+        html += '<div class="stat-item"><div class="stat-icon">' + ICONS.heart + '</div><span class="stat-num">' + formatCount(stat.like) + '</span></div>';
+        // 评论数（可点击查看评论）
+        html += '<div class="stat-item comment-btn" style="cursor:pointer"><div class="stat-icon">' + ICONS.comment + '</div><span class="stat-num">' + formatCount(stat.reply || stat.danmaku || 0) + '</span></div>';
         html += "</div>";
 
         // 底部信息
         html += '<div class="info">';
-        html +=
-          '<div class="author"><span class="at">@</span>' +
-          escapeHtml(owner.name || "未知作者") +
-          "</div>";
-        if (video.title)
-          html += '<div class="title">' + escapeHtml(video.title) + "</div>";
-        if (video.desc)
-          html += '<div class="desc">' + escapeHtml(video.desc) + "</div>";
-        html +=
-          '<div class="music-tag">' +
-          ICONS.music +
-          "<span>" +
-          escapeHtml(owner.name || "原创音乐") +
-          " 的作品原声</span></div>";
-        html += "</div>";
+        html += '<div class="author-line">';
+        html += '<span class="author-name">@' + escapeHtml(owner.name || "未知作者") + '</span>';
+        html += '<span class="author-badge">UP主</span>';
+        html += '</div>';
+        if (video.title) html += '<div class="video-title">' + escapeHtml(video.title) + '</div>';
+        if (video.desc) html += '<div class="video-desc">' + escapeHtml(video.desc) + '</div>';
+        html += '</div>';
 
         card.innerHTML = html;
 
-        // ---- 事件绑定 ----
-        var likeBtn = card.querySelector(".like");
-        likeBtn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          toggleLike(video, likeBtn);
-        });
-
+        // 点击评论图标打开评论区
         var commentBtn = card.querySelector(".comment-btn");
-        commentBtn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          openComments(video);
-        });
-
-        var shareBtn = card.querySelector(".share-btn");
-        shareBtn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          shareVideo(video);
-        });
-
-        var followBtn = card.querySelector(".follow-btn");
-        followBtn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          toggleFollow(mid, owner.name, followBtn);
-        });
+        if (commentBtn) {
+          commentBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            openComments(video);
+          });
+        }
 
         return card;
       }
 
-      /* ============ 点赞 / 关注 / 分享 ============ */
-      function toggleLike(video, btn) {
-        var isLiked = !state.liked[video.bvid];
-        state.liked[video.bvid] = isLiked;
-        btn.classList.toggle("liked", isLiked);
-        var countEl = btn.querySelector(".count");
-        var base = Number((video.stat || {}).like) || 0;
-        countEl.textContent = formatCount(isLiked ? base + 1 : base);
-      }
-
-      function toggleFollow(mid, name, btn) {
-        var isFollowed = !state.followed[mid];
-        state.followed[mid] = isFollowed;
-        // 同步所有相同作者的按钮
-        document
-          .querySelectorAll('.follow-btn[data-mid="' + mid + '"]')
-          .forEach(function (el) {
-            el.classList.toggle("followed", isFollowed);
-          });
-        toast(isFollowed ? "已关注 @" + (name || "作者") : "已取消关注");
-      }
-
-      function shareVideo(video) {
-        var url = "https://www.bilibili.com/video/" + video.bvid;
-        try {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url);
-            toast("已复制分享链接");
-            return;
-          }
-        } catch (err) {}
-        toast("分享链接已生成");
-      }
-
-      /* ============ 播放器加载 / 卸载（节省内存） ============ */
       function loadPlayer(card, video) {
         var wrap = card.querySelector("[data-player]");
-        if (!wrap) return;
-        if (wrap.querySelector("iframe")) return; // 已加载
-
+        if (!wrap || wrap.querySelector("iframe")) return;
         var iframe = document.createElement("iframe");
         iframe.src = playerUrl(video.bvid);
         iframe.setAttribute("frameborder", "0");
         iframe.setAttribute("scrolling", "no");
         iframe.setAttribute("allowfullscreen", "true");
-        iframe.setAttribute(
-          "allow",
-          "autoplay; encrypted-media; picture-in-picture; fullscreen"
-        );
+        iframe.setAttribute("allow", "autoplay; encrypted-media; picture-in-picture; fullscreen");
         iframe.style.opacity = "0";
-        iframe.style.transition = "opacity 0.3s";
-
+        iframe.style.transition = "opacity 0.35s ease";
         iframe.addEventListener("load", function () {
           iframe.style.opacity = "1";
           var poster = wrap.querySelector(".player-poster");
@@ -941,7 +355,6 @@
           if (poster) poster.style.opacity = "0";
           if (hint) hint.style.opacity = "0";
         });
-
         wrap.appendChild(iframe);
       }
 
@@ -950,7 +363,6 @@
         if (!wrap) return;
         var iframe = wrap.querySelector("iframe");
         if (iframe) {
-          // 先置空以停止播放/释放资源
           iframe.src = "about:blank";
           if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
         }
@@ -960,63 +372,35 @@
         if (hint) hint.style.opacity = "";
       }
 
-      /* ============ 当前激活卡片管理 ============ */
       function setActive(index) {
-        if (index < 0 || index >= state.videos.length) return;
-        if (index === state.activeIndex) return;
-
+        if (index < 0 || index >= state.videos.length || index === state.activeIndex) return;
         state.activeIndex = index;
-
-        // 仅加载当前卡片播放器
         var cards = feed.children;
         for (var i = 0; i < cards.length; i++) {
-          if (i === index) {
-            loadPlayer(cards[i], state.videos[i]);
-          } else {
-            unloadPlayer(cards[i]);
-          }
+          if (i === index) loadPlayer(cards[i], state.videos[i]);
+          else unloadPlayer(cards[i]);
         }
-
-        // 接近末尾时自动加载下一页
-        if (index >= state.videos.length - 2 && !state.loading && !state.noMore) {
-          loadMore();
-        }
+        if (index >= state.videos.length - 2 && !state.loading && !state.noMore) loadMore();
       }
 
-      /* ============ 滚动吸附检测（IntersectionObserver） ============ */
-      var ratios = {}; // index -> 最后一次可见比例
-      var observer = new IntersectionObserver(
-        function (entries) {
-          entries.forEach(function (entry) {
-            var idx = parseInt(entry.target.dataset.index, 10);
-            if (!isNaN(idx)) ratios[idx] = entry.intersectionRatio;
-          });
-          // 取全局最大可见比例的卡片
-          var maxIdx = -1;
-          var maxRatio = 0;
-          Object.keys(ratios).forEach(function (k) {
-            if (ratios[k] > maxRatio) {
-              maxRatio = ratios[k];
-              maxIdx = parseInt(k, 10);
-            }
-          });
-          if (maxIdx >= 0 && maxRatio >= 0.55) {
-            setActive(maxIdx);
-          }
-        },
-        { root: feed, threshold: [0, 0.25, 0.5, 0.55, 0.7, 0.85, 1] }
-      );
+      var ratios = {};
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          var idx = parseInt(entry.target.dataset.index, 10);
+          if (!isNaN(idx)) ratios[idx] = entry.intersectionRatio;
+        });
+        var maxIdx = -1, maxRatio = 0;
+        Object.keys(ratios).forEach(function (k) {
+          if (ratios[k] > maxRatio) { maxRatio = ratios[k]; maxIdx = parseInt(k, 10); }
+        });
+        if (maxIdx >= 0 && maxRatio >= 0.55) setActive(maxIdx);
+      }, { root: feed, threshold: [0, 0.25, 0.5, 0.55, 0.7, 0.85, 1] });
 
-      /* ============ 获取视频列表 ============ */
       function loadMore() {
         if (state.loading || state.noMore) return;
         state.loading = true;
-
-        fetch("/api/bilibili/feed?page=" + state.page)
-          .then(function (r) {
-            if (!r.ok) throw new Error("HTTP " + r.status);
-            return r.json();
-          })
+        fetch("/api/bilibili/feed")
+          .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
           .then(function (data) {
             state.loading = false;
             var videos = (data && data.videos) || [];
@@ -1031,20 +415,13 @@
               feed.appendChild(card);
               observer.observe(card);
             });
-            state.page++;
-            // 首次加载：激活第一个视频
-            if (state.activeIndex < 0 && state.videos.length > 0) {
-              setActive(0);
-            }
+            if (state.activeIndex < 0 && state.videos.length > 0) setActive(0);
             hideInitLoader();
           })
           .catch(function (err) {
             state.loading = false;
-            if (state.videos.length === 0) {
-              showFeedError(err);
-            } else {
-              toast("加载失败，请稍后重试");
-            }
+            if (state.videos.length === 0) showFeedError(err);
+            else toast("加载失败，请稍后重试");
           });
       }
 
@@ -1061,40 +438,30 @@
       }
 
       function showFeedError() {
-        var loader = document.getElementById("initLoader");
-        loader.innerHTML =
-          '<div style="color:#888;font-size:14px;margin-bottom:16px">视频加载失败</div>' +
-          '<div style="color:#fe2c55;font-size:14px">点击重试</div>';
-        loader.style.cursor = "pointer";
-        loader.onclick = function () {
-          loader.innerHTML =
-            '<div class="spinner"></div><div class="brand">正在加载精彩视频</div>';
-          loader.style.cursor = "";
-          loader.onclick = null;
-          state.page = 1;
+        initLoader.innerHTML =
+          '<div style="color:#666;font-size:14px;margin-bottom:14px">视频加载失败</div>' +
+          '<div style="color:#fb7299;font-size:14px">点击重试</div>';
+        initLoader.style.cursor = "pointer";
+        initLoader.onclick = function () {
+          initLoader.innerHTML = '<div class="spinner"></div><div class="brand">正在加载精彩视频</div>';
+          initLoader.style.cursor = "";
+          initLoader.onclick = null;
           loadMore();
         };
       }
 
       function hideInitLoader() {
-        var loader = document.getElementById("initLoader");
-        loader.classList.add("hide");
-        setTimeout(function () {
-          if (loader.parentNode) loader.parentNode.removeChild(loader);
-        }, 320);
+        initLoader.classList.add("hide");
+        setTimeout(function () { if (initLoader.parentNode) initLoader.parentNode.removeChild(initLoader); }, 320);
       }
 
-      /* ============ 评论区 ============ */
+      // ============ 评论区（只读） ============
       function openComments(video) {
         state.commentAid = video.aid;
         state.commentPage = 1;
         state.commentNoMore = false;
-        if (state.commentEndObserver) {
-          state.commentEndObserver.disconnect();
-          state.commentEndObserver = null;
-        }
-        commentList.innerHTML =
-          '<div class="comment-loading"><div class="spinner"></div>加载中...</div>';
+        if (state.commentEndObserver) { state.commentEndObserver.disconnect(); state.commentEndObserver = null; }
+        commentList.innerHTML = '<div class="comment-loading"><div class="spinner"></div>加载中...</div>';
         commentTitle.textContent = "评论";
         commentOverlay.classList.add("show");
         commentPanel.classList.add("show");
@@ -1105,57 +472,34 @@
         commentOverlay.classList.remove("show");
         commentPanel.classList.remove("show");
         state.commentAid = null;
-        if (state.commentEndObserver) {
-          state.commentEndObserver.disconnect();
-          state.commentEndObserver = null;
-        }
-        commentInput.blur();
+        if (state.commentEndObserver) { state.commentEndObserver.disconnect(); state.commentEndObserver = null; }
       }
 
       function loadComments(aid) {
         if (state.commentLoading || state.commentNoMore) return;
         state.commentLoading = true;
-
-        fetch(
-          "/api/bilibili/comments/" +
-            encodeURIComponent(aid) +
-            "?page=" +
-            state.commentPage
-        )
-          .then(function (r) {
-            if (!r.ok) throw new Error("HTTP " + r.status);
-            return r.json();
-          })
+        fetch("/api/bilibili/comments/" + encodeURIComponent(aid) + "?page=" + state.commentPage)
+          .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
           .then(function (data) {
             state.commentLoading = false;
             var replies = (data && data.replies) || [];
-
             var loadingEl = commentList.querySelector(".comment-loading");
             if (loadingEl) loadingEl.remove();
 
+            if (state.commentPage === 1) {
+              var total = data && data.total;
+              commentTitle.textContent = total != null && total > 0 ? formatCount(total) + " 条评论" : "评论";
+            }
+
             if (state.commentPage === 1 && replies.length === 0) {
-              commentList.innerHTML =
-                '<div class="comment-empty">还没有评论，快来抢沙发吧</div>';
+              commentList.innerHTML = '<div class="comment-empty">还没有评论</div>';
               state.commentNoMore = true;
               return;
             }
 
             var frag = document.createDocumentFragment();
-            replies.forEach(function (r) {
-              frag.appendChild(createCommentItem(r));
-            });
+            replies.forEach(function (r) { frag.appendChild(createCommentItem(r)); });
             commentList.appendChild(frag);
-
-            // 更新标题为评论数（首屏时尝试用接口返回的 total）
-            if (state.commentPage === 1) {
-              var total =
-                data && (data.total != null ? data.total : data.count);
-              if (total != null) {
-                commentTitle.textContent = formatCount(total) + " 条评论";
-              } else {
-                commentTitle.textContent = "评论";
-              }
-            }
 
             if (replies.length < 20) {
               state.commentNoMore = true;
@@ -1173,11 +517,12 @@
             var loadingEl = commentList.querySelector(".comment-loading");
             if (loadingEl) loadingEl.remove();
             if (state.commentPage === 1) {
-              commentList.innerHTML =
-                '<div class="comment-empty tap">评论加载失败，点击重试</div>';
+              commentList.innerHTML = '<div class="comment-empty">评论加载失败，点击重试</div>';
+              commentList.firstChild.style.color = "#fb7299";
+              commentList.firstChild.style.cursor = "pointer";
               commentList.firstChild.addEventListener("click", function () {
-                commentList.innerHTML =
-                  '<div class="comment-loading"><div class="spinner"></div>加载中...</div>';
+                commentList.innerHTML = '<div class="comment-loading"><div class="spinner"></div>加载中...</div>';
+                state.commentPage = 1;
                 loadComments(aid);
               });
             } else {
@@ -1186,145 +531,77 @@
           });
       }
 
-      // 评论分页：滚动到底部自动加载
       function setupCommentEnd(aid) {
         if (state.commentEndObserver) state.commentEndObserver.disconnect();
         var sentinel = document.createElement("div");
         sentinel.style.height = "1px";
         commentList.appendChild(sentinel);
-        state.commentEndObserver = new IntersectionObserver(
-          function (entries) {
-            if (entries[0].isIntersecting && state.commentAid === aid) {
-              state.commentEndObserver.disconnect();
-              state.commentEndObserver = null;
-              sentinel.remove();
-              loadComments(aid);
-            }
-          },
-          { root: commentList, threshold: 0 }
-        );
+        state.commentEndObserver = new IntersectionObserver(function (entries) {
+          if (entries[0].isIntersecting && state.commentAid === aid) {
+            state.commentEndObserver.disconnect();
+            state.commentEndObserver = null;
+            sentinel.remove();
+            loadComments(aid);
+          }
+        }, { root: commentList, threshold: 0 });
         state.commentEndObserver.observe(sentinel);
       }
 
       function createCommentItem(r) {
         var div = document.createElement("div");
         div.className = "comment-item";
-        var face = https(r.avatar) || "/default-avatar.png";
+        var face = https(r.avatar) || "";
         var html = "";
-        html +=
-          '<img class="c-avatar" src="' +
-          escapeHtml(face) +
-          '" onerror="this.src=\'/default-avatar.png\'" />';
+        if (face) {
+          html += '<img class="c-avatar" src="' + escapeHtml(face) + '" onerror="this.style.display=\'none\'" />';
+        } else {
+          html += '<div class="c-avatar" style="background:#333"></div>';
+        }
         html += '<div class="c-body">';
-        html +=
-          '<div class="c-name">' +
-          escapeHtml(r.uname || "匿名用户") +
-          "</div>";
-        html += '<div class="c-text">' + escapeHtml(r.message) + "</div>";
+        html += '<div class="c-name">' + escapeHtml(r.uname || "匿名用户") + '</div>';
+        html += '<div class="c-text">' + escapeHtml(r.message) + '</div>';
         html += '<div class="c-meta">';
-        html +=
-          '<span class="c-time">' + formatTime(r.ctime) + "</span>";
-        html +=
-          '<span class="c-like"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' +
-          formatCount(r.like) +
-          "</span>";
-        html += "</div>";
-        html += "</div>";
+        html += '<span class="c-time">' + formatTime(r.ctime) + '</span>';
+        html += '<span class="c-like"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' + formatCount(r.like) + '</span>';
+        html += '</div></div>';
         div.innerHTML = html;
         return div;
       }
 
-      /* ============ 事件绑定 ============ */
-      // 返回按钮
+      // ============ 事件绑定 ============
       document.getElementById("backBtn").addEventListener("click", function () {
-        if (
-          window.AndroidBridge &&
-          typeof window.AndroidBridge.goBack === "function"
-        ) {
+        if (window.AndroidBridge && typeof window.AndroidBridge.goBack === "function") {
           window.AndroidBridge.goBack();
         } else if (typeof history.back === "function") {
           history.back();
         }
       });
 
-      // 评论区关闭
       commentOverlay.addEventListener("click", closeComments);
-      document
-        .getElementById("commentClose")
-        .addEventListener("click", closeComments);
+      document.getElementById("commentClose").addEventListener("click", closeComments);
 
-      // 评论发送（无写入接口，本地乐观展示）
-      function sendComment() {
-        var msg = (commentInput.value || "").trim();
-        if (!msg) return;
-        var emptyEl = commentList.querySelector(".comment-empty");
-        if (emptyEl) emptyEl.remove();
-        var item = document.createElement("div");
-        item.className = "comment-item";
-        item.innerHTML =
-          '<img class="c-avatar" src="/default-avatar.png" />' +
-          '<div class="c-body">' +
-          '<div class="c-name">我</div>' +
-          '<div class="c-text">' +
-          escapeHtml(msg) +
-          "</div>" +
-          '<div class="c-meta"><span class="c-time">刚刚</span></div>' +
-          "</div>";
-        commentList.insertBefore(item, commentList.firstChild);
-        commentInput.value = "";
-        toast("评论已发送");
-      }
-      commentSend.addEventListener("click", sendComment);
-      commentInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          sendComment();
-        }
-      });
-
-      // 评论区顶部下拉关闭
+      // 评论区下拉关闭
       var touchStartY = null;
-      commentPanel.addEventListener(
-        "touchstart",
-        function (e) {
-          if (commentList.scrollTop <= 0) {
-            touchStartY = e.touches[0].clientY;
-          } else {
-            touchStartY = null;
-          }
-        },
-        { passive: true }
-      );
-      commentPanel.addEventListener(
-        "touchmove",
-        function (e) {
-          if (touchStartY !== null) {
-            var dy = e.touches[0].clientY - touchStartY;
-            if (dy > 70 && commentList.scrollTop <= 0) {
-              closeComments();
-              touchStartY = null;
-            }
-          }
-        },
-        { passive: true }
-      );
-      commentPanel.addEventListener("touchend", function () {
-        touchStartY = null;
-      });
+      commentPanel.addEventListener("touchstart", function (e) {
+        touchStartY = commentList.scrollTop <= 0 ? e.touches[0].clientY : null;
+      }, { passive: true });
+      commentPanel.addEventListener("touchmove", function (e) {
+        if (touchStartY !== null) {
+          var dy = e.touches[0].clientY - touchStartY;
+          if (dy > 70 && commentList.scrollTop <= 0) { closeComments(); touchStartY = null; }
+        }
+      }, { passive: true });
+      commentPanel.addEventListener("touchend", function () { touchStartY = null; });
 
       // 阻止双击缩放
       var lastTouch = 0;
-      document.addEventListener(
-        "touchend",
-        function (e) {
-          var now = Date.now();
-          if (now - lastTouch <= 300) e.preventDefault();
-          lastTouch = now;
-        },
-        { passive: false }
-      );
+      document.addEventListener("touchend", function (e) {
+        var now = Date.now();
+        if (now - lastTouch <= 300) e.preventDefault();
+        lastTouch = now;
+      }, { passive: false });
 
-      /* ============ 初始化 ============ */
+      // 启动
       loadMore();
     })();
   </script>

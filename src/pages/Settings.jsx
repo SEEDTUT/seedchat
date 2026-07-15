@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Camera, User as UserIcon, KeyRound, Check, Tag } from 'lucide-react';
+import { Camera, User as UserIcon, KeyRound, Check, Tag, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { authApi, uploadApi } from '../api';
 import { useStore } from '../store';
@@ -67,6 +67,7 @@ function AvatarDisplay({ user }) {
 export default function Settings() {
   const user = useStore((s) => s.user);
   const updateUser = useStore((s) => s.updateUser);
+  const logout = useStore((s) => s.logout);
 
   // 头像
   const avatarInputRef = useRef(null);
@@ -152,6 +153,13 @@ export default function Settings() {
       toast.error(err.message || '密码修改失败');
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  const handleLogout = () => {
+    if (window.confirm('确定要退出登录吗？')) {
+      logout();
+      window.location.href = '/';
     }
   };
 
@@ -295,6 +303,17 @@ export default function Settings() {
             </button>
           </div>
         </form>
+      </section>
+
+      {/* 退出登录 */}
+      <section className="pb-4">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-red-50 text-red-600 font-medium hover:bg-red-100 transition active:opacity-70"
+        >
+          <LogOut size={20} />
+          退出登录
+        </button>
       </section>
     </div>
   );
