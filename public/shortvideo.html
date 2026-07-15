@@ -115,6 +115,24 @@
     border: 2px solid rgba(255,255,255,0.5); transition: opacity 0.3s;
   }
   .play-hint svg { width: 28px; height: 28px; margin-left: 3px; fill: #fff; }
+  .player-loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.15); border-top-color: #fb7299;
+    animation: spin 0.8s linear infinite; opacity: 0; transition: opacity 0.3s;
+  }
+  .player-loading.show { opacity: 1; }
+  .player-retry {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    display: none; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .player-retry.show { display: flex; }
+  .player-retry .retry-btn {
+    padding: 10px 24px; border-radius: 20px; background: rgba(251,114,153,0.2);
+    border: 1px solid #fb7299; color: #fb7299; font-size: 14px; cursor: pointer;
+  }
+  .player-retry .retry-btn:active { background: rgba(251,114,153,0.35); }
+  .player-retry .retry-text { font-size: 13px; color: rgba(255,255,255,0.5); }
   .card-overlay {
     position: absolute; left: 0; right: 0; bottom: 0; height: 55%;
     background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 50%, transparent 100%);
@@ -307,12 +325,8 @@
     (function () {
       "use strict";
 
-      // API 基础路径 - 支持本地 file:// 加载和网页加载
+      // API 基础路径 - loadDataWithBaseURL 设置了 baseURL，相对路径自动解析
       var API_BASE = "";
-      if (location.protocol === "file:") {
-        // 从 APK 本地 assets 加载时，使用服务器 API
-        API_BASE = "https://seedchat.ns-klw573du.cloud.sealos.io";
-      }
 
       function api(path) { return API_BASE + path; }
 
@@ -421,7 +435,7 @@
         toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 1500);
       }
       function playerUrl(bvid) {
-        return "https://player.bilibili.com/player.html?bvid=" + encodeURIComponent(bvid) + "&autoplay=true&high_quality=1&danmaku=1";
+        return "https://player.bilibili.com/player.html?bvid=" + encodeURIComponent(bvid) + "&autoplay=true&danmaku=1&as_wide=1&page=1";
       }
 
       function createCard(video, index) {
@@ -436,7 +450,10 @@
         var html = '<div class="card-overlay"></div>';
         html += '<div class="player-wrap" data-player>';
         if (pic) html += '<div class="player-poster" style="background-image:url(\'' + pic + "')\"></div>";
-        html += '<div class="play-hint">' + ICONS.play + "</div></div>";
+        html += '<div class="play-hint">' + ICONS.play + "</div>";
+        html += '<div class="player-loading"></div>';
+        html += '<div class="player-retry"><span class="retry-text">视频加载失败</span><div class="retry-btn">点击重试</div></div>';
+        html += '</div>';
 
         html += '<div class="side-info">';
         if (face) html += '<img class="avatar-circle" src="' + escapeHtml(face) + '" onerror="this.style.display=\'none\'" />';
@@ -469,18 +486,56 @@
       function loadPlayer(card, video) {
         var wrap = card.querySelector("[data-player]");
         if (!wrap || wrap.querySelector("iframe")) return;
+        var loading = wrap.querySelector(".player-loading");
+        var hint = wrap.querySelector(".play-hint");
+        var retry = wrap.querySelector(".player-retry");
+        if (loading) loading.classList.add("show");
+        if (hint) hint.style.opacity = "0";
+
         var iframe = document.createElement("iframe");
         iframe.src = playerUrl(video.bvid);
         iframe.setAttribute("frameborder", "0"); iframe.setAttribute("scrolling", "no");
         iframe.setAttribute("allowfullscreen", "true");
         iframe.setAttribute("allow", "autoplay; encrypted-media; picture-in-picture; fullscreen");
-        iframe.style.opacity = "0"; iframe.style.transition = "opacity 0.35s ease";
+        iframe.style.opacity = "0"; iframe.style.transition = "opacity 0.4s ease";
+
+        var loaded = false;
+        var timeout = setTimeout(function () {
+          if (!loaded) {
+            if (loading) loading.classList.remove("show");
+            if (retry) retry.classList.add("show");
+          }
+        }, 12000);
+
         iframe.addEventListener("load", function () {
+          loaded = true;
+          clearTimeout(timeout);
           iframe.style.opacity = "1";
-          var poster = wrap.querySelector(".player-poster"); var hint = wrap.querySelector(".play-hint");
-          if (poster) poster.style.opacity = "0"; if (hint) hint.style.opacity = "0";
+          var poster = wrap.querySelector(".player-poster");
+          if (poster) poster.style.opacity = "0";
+          if (loading) loading.classList.remove("show");
+          if (hint) hint.style.opacity = "0";
         });
+
+        iframe.addEventListener("error", function () {
+          clearTimeout(timeout);
+          if (loading) loading.classList.remove("show");
+          if (retry) retry.classList.add("show");
+        });
+
         wrap.appendChild(iframe);
+
+        // Retry button
+        if (retry) {
+          var retryBtn = retry.querySelector(".retry-btn");
+          if (retryBtn) retryBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            retry.classList.remove("show");
+            var oldIframe = wrap.querySelector("iframe");
+            if (oldIframe) { oldIframe.src = "about:blank"; oldIframe.parentNode.removeChild(oldIframe); }
+            loadPlayer(card, video);
+          });
+        }
       }
 
       function unloadPlayer(card) {
@@ -488,8 +543,14 @@
         if (!wrap) return;
         var iframe = wrap.querySelector("iframe");
         if (iframe) { iframe.src = "about:blank"; if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }
-        var poster = wrap.querySelector(".player-poster"); var hint = wrap.querySelector(".play-hint");
-        if (poster) poster.style.opacity = ""; if (hint) hint.style.opacity = "";
+        var poster = wrap.querySelector(".player-poster");
+        var hint = wrap.querySelector(".play-hint");
+        var loading = wrap.querySelector(".player-loading");
+        var retry = wrap.querySelector(".player-retry");
+        if (poster) poster.style.opacity = "";
+        if (hint) hint.style.opacity = "";
+        if (loading) loading.classList.remove("show");
+        if (retry) retry.classList.remove("show");
       }
 
       function setActive(index) {
