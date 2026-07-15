@@ -1,5 +1,7 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { initDB } from './db.js';
@@ -15,6 +17,7 @@ import usersRoutes from './routes/users.js';
 import uploadRoutes from './routes/upload.js';
 import nameplatesRoutes from './routes/nameplates.js';
 import updatesRoutes from './routes/updates.js';
+import bilibiliRoutes from './routes/bilibili.js';
 
 const app = new Hono();
 
@@ -31,6 +34,7 @@ app.route('/api/users', usersRoutes);
 app.route('/api/upload', uploadRoutes);
 app.route('/api/nameplates', nameplatesRoutes);
 app.route('/api/updates', updatesRoutes);
+app.route('/api/bilibili', bilibiliRoutes);
 
 // 静态文件 - 带缓存头
 app.use('/assets/*', async (c, next) => {
@@ -58,6 +62,22 @@ app.get('/default-avatar.png', (c) => {
     },
   });
 });
+// 短视频页面 - 从 public 目录读取
+let shortVideoHtml = null;
+app.get('/shortvideo', (c) => {
+  if (!shortVideoHtml) {
+    try {
+      const publicDir = join(process.cwd(), 'public');
+      shortVideoHtml = readFileSync(join(publicDir, 'shortvideo.html'), 'utf-8');
+    } catch {
+      shortVideoHtml = readFileSync(join(process.cwd(), 'dist', 'shortvideo.html'), 'utf-8');
+    }
+  }
+  return new Response(shortVideoHtml, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+});
+
 app.use('*', serveStatic({ root: './dist' }));
 app.get('*', serveStatic({ path: './dist/index.html' }));
 

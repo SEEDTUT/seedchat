@@ -7,6 +7,7 @@ import {
   Bell,
   X,
   CheckCheck,
+  Play,
 } from 'lucide-react';
 import { useStore } from '../store';
 import { notificationsApi } from '../api';
@@ -63,12 +64,27 @@ export default function MobileLayout() {
 
   const showAdminFeatures = user?.is_admin || isAdminMode;
 
-  // Bottom tab items - 消息选项已移除，私信从好友列表进入
+  // 检测是否为手机客户端（APK），仅手机客户端显示短视频入口
+  const isMobileApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('SeedChatApp');
+
+  // 底部导航栏
   const tabs = [
     { to: '/', label: '论坛', icon: Home, end: true },
     { to: '/friends', label: '好友', icon: Users, end: false },
-    { to: '/settings', label: '我的', icon: SettingsIcon, end: false },
   ];
+
+  // 短视频按钮（仅手机客户端）
+  const shortVideoTab = { to: '/shortvideo', label: '短视频', icon: Play, end: false, isShortVideo: true };
+
+  const settingsTab = { to: '/settings', label: '我的', icon: SettingsIcon, end: false };
+
+  // 组装 tabs：论坛 + 好友 + [短视频] + 我的
+  const allTabs = isMobileApp ? [...tabs, shortVideoTab, settingsTab] : [...tabs, settingsTab];
+
+  // 处理短视频按钮点击 - 导航到 /shortvideo，WebViewClient 会拦截并打开 ShortVideoActivity
+  const handleShortVideoClick = () => {
+    window.location.href = '/shortvideo';
+  };
 
   const handleLogout = () => {
     logout();
@@ -267,8 +283,21 @@ export default function MobileLayout() {
           className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100 flex"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)', height: 'calc(56px + env(safe-area-inset-bottom))' }}
         >
-          {tabs.map((tab) => {
+          {allTabs.map((tab) => {
             const Icon = tab.icon;
+            if (tab.isShortVideo) {
+              return (
+                <button
+                  key="shortvideo"
+                  onClick={handleShortVideoClick}
+                  className="flex-1 flex flex-col items-center justify-center gap-0.5 active:opacity-60 transition"
+                  style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                >
+                  <Icon size={22} strokeWidth={2} className="text-gray-400" />
+                  <span className="text-[10px] text-gray-400">{tab.label}</span>
+                </button>
+              );
+            }
             return (
               <NavLink
                 key={tab.to}
