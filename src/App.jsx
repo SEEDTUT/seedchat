@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store';
 import Layout from './components/Layout';
 import MobileLayout from './components/MobileLayout';
+import DesktopLayout from './components/DesktopLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -16,19 +17,22 @@ import About from './pages/About';
 import Updates from './pages/Updates';
 import Messages from './pages/Messages';
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof navigator === 'undefined') return false;
-    return navigator.userAgent.includes('SeedChatApp');
+function useClientType() {
+  const [clientType, setClientType] = useState(() => {
+    if (typeof navigator === 'undefined') return 'web';
+    const ua = navigator.userAgent;
+    if (ua.includes('SeedChatPC')) return 'desktop';
+    if (ua.includes('SeedChatApp')) return 'mobile';
+    return 'web';
   });
-  return isMobile;
+  return clientType;
 }
 
 export default function App() {
   const token = useStore((s) => s.token);
   const loadUser = useStore((s) => s.loadUser);
   const [ready, setReady] = useState(false);
-  const isMobile = useIsMobile();
+  const clientType = useClientType();
 
   useEffect(() => {
     const init = async () => {
@@ -55,7 +59,7 @@ export default function App() {
     );
   }
 
-  const ActiveLayout = isMobile ? MobileLayout : Layout;
+  const ActiveLayout = clientType === 'mobile' ? MobileLayout : clientType === 'desktop' ? DesktopLayout : Layout;
 
   return (
     <Routes>
