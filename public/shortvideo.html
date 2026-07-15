@@ -515,7 +515,7 @@
         // 暂停/播放图标
         html += '<div class="pause-icon">' + ICONS.play + '</div>';
         // 加速指示器
-        html += '<div class="speed-indicator"><span class="speed-val">2x</span><span class="speed-label">加速中</span></div>';
+        html += '<div class="speed-indicator"><span class="speed-val">⏩</span><span class="speed-label">快进中</span></div>';
         // 双击爱心
         html += '<div class="heart-burst">' + ICONS.heartFilled + '</div>';
         // 进度条
@@ -642,29 +642,61 @@
           if (!iframe) return;
           isPaused = !isPaused;
           if (isPaused) {
-            sendToPlayer(iframe, { command: "pauseVideo" });
+            sendToPlayer(iframe, { command: "pauseVideo", data: null });
             showPauseIcon(true); // 显示播放图标（表示已暂停）
             stopProgress(card.dataset.index);
           } else {
-            sendToPlayer(iframe, { command: "playVideo" });
+            sendToPlayer(iframe, { command: "playVideo", data: null });
             showPauseIcon(false); // 显示暂停图标（表示已恢复播放）
             startProgress(card, video);
           }
         }
 
+        // ===== 播放状态追踪 =====
+        var seekTimer = null;
+        var seekCurrentTime = 0;
+        var seekLastUpdate = 0;
+
         function startSpeedUp() {
           if (isSpeeding) return;
           isSpeeding = true;
-          var iframe = getIframe();
-          if (iframe) sendToPlayer(iframe, { command: "setPlaybackRate", value: 2 });
+          seekLastUpdate = Date.now();
+
+          // 每 500ms 跳转 3 秒，有效 ~7x 快进
+          seekTimer = setInterval(function () {
+            var iframe = getIframe();
+            if (!iframe) return;
+            // 估算当前播放时间
+            var realElapsed = (Date.now() - seekLastUpdate) / 1000;
+            seekCurrentTime += realElapsed + 3; // 正常播放 + 3 秒跳转
+            seekLastUpdate = Date.now();
+
+            // 限制在视频时长内
+            var maxTime = Number(video.duration) || 9999;
+            if (seekCurrentTime >= maxTime) {
+              seekCurrentTime = maxTime;
+              stopSpeedUp();
+              return;
+            }
+
+            // 尝试 postMessage seekTo
+            sendToPlayer(iframe, { command: "seekTo", data: Math.floor(seekCurrentTime) });
+            // 同时也尝试 setPlaybackRate（万一某些播放器版本支持）
+            sendToPlayer(iframe, { command: "setPlaybackRate", data: 2 });
+          }, 500);
+
           if (speedInd) speedInd.classList.add("show");
         }
 
         function stopSpeedUp() {
           if (!isSpeeding) return;
           isSpeeding = false;
+
+          if (seekTimer) { clearInterval(seekTimer); seekTimer = null; }
+
           var iframe = getIframe();
-          if (iframe) sendToPlayer(iframe, { command: "setPlaybackRate", value: 1 });
+          if (iframe) sendToPlayer(iframe, { command: "setPlaybackRate", data: 1 });
+
           if (speedInd) speedInd.classList.remove("show");
         }
 
