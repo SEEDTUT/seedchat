@@ -104,12 +104,13 @@ async function searchMinecraftVideos(page = 1) {
     const wbi = await getWbiKeys();
     if (!wbi) return [];
 
+    // 使用英文关键词 "Minecraft" 搜索（中文关键词在服务器 IP 上被限制）
     const params = {
-      keyword: '我的世界',
+      keyword: 'Minecraft',
       search_type: 'video',
       order: 'totalrank',
-      duration: 0,
-      tids: 0,
+      duration: '0',
+      tids: '0',
       page: String(page),
       page_size: '20',
     };
