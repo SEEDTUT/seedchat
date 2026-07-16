@@ -93,6 +93,88 @@ adminRoutes.get('/users', (c) => {
   }
 });
 
+// POST /api/admin/users/:id/sponsor/activate - 手动激活用户VIP（无需订单号）
+adminRoutes.post('/users/:id/sponsor/activate', (c) => {
+  try {
+    const { id } = c.req.param();
+
+    const targetUser = db.prepare(
+      'SELECT id, is_sponsor FROM seedchat_users WHERE id = ?'
+    ).get(id);
+
+    if (!targetUser) {
+      return c.json({ error: '用户不存在' }, 404);
+    }
+
+    if (targetUser.is_sponsor) {
+      return c.json({ error: '该用户已是VIP' }, 400);
+    }
+
+    db.prepare('UPDATE seedchat_users SET is_sponsor = 1 WHERE id = ?').run(id);
+
+    return c.json({ message: 'VIP已激活', is_sponsor: true });
+  } catch (err) {
+    return c.json({ error: err.message || '服务器内部错误' }, 500);
+  }
+});
+
+// POST /api/admin/users/:id/sponsor/revoke - 注销用户VIP（用户失去VIP，订单号无法再激活）
+adminRoutes.post('/users/:id/sponsor/revoke', (c) => {
+  try {
+    const { id } = c.req.param();
+
+    const targetUser = db.prepare(
+      'SELECT id, is_sponsor FROM seedchat_users WHERE id = ?'
+    ).get(id);
+
+    if (!targetUser) {
+      return c.json({ error: '用户不存在' }, 404);
+    }
+
+    if (!targetUser.is_sponsor) {
+      return c.json({ error: '该用户不是VIP' }, 400);
+    }
+
+    // 注销VIP：is_sponsor 设为 0
+    // 订单记录保留在 seedchat_sponsor_orders 中，因此该订单号无法再被激活
+    db.prepare('UPDATE seedchat_users SET is_sponsor = 0 WHERE id = ?').run(id);
+
+    return c.json({ message: 'VIP已注销，关联订单号无法再次激活', is_sponsor: false });
+  } catch (err) {
+    return c.json({ error: err.message || '服务器内部错误' }, 500);
+  }
+});
+
+// POST /api/admin/users/:id/sponsor/withdraw - 撤回用户VIP注销（删除订单记录，订单号可再次激活）
+adminRoutes.post('/users/:id/sponsor/withdraw', (c) => {
+  try {
+    const { id } = c.req.param();
+
+    const targetUser = db.prepare(
+      'SELECT id FROM seedchat_users WHERE id = ?'
+    ).get(id);
+
+    if (!targetUser) {
+      return c.json({ error: '用户不存在' }, 404);
+    }
+
+    // 查询该用户的订单记录
+    const orders = db.prepare(
+      'SELECT order_no FROM seedchat_sponsor_orders WHERE user_id = ?'
+    ).all(id);
+
+    // 删除该用户的所有订单记录，使订单号可以再次被激活
+    db.prepare('DELETE FROM seedchat_sponsor_orders WHERE user_id = ?').run(id);
+
+    return c.json({
+      message: `已撤回VIP注销，释放了 ${orders.length} 个订单号，可再次激活`,
+      released_orders: orders.length,
+    });
+  } catch (err) {
+    return c.json({ error: err.message || '服务器内部错误' }, 500);
+  }
+});
+
 // DELETE /api/admin/users/:id - 删除用户（不能删自己，不能删其他管理员）
 adminRoutes.delete('/users/:id', (c) => {
   try {

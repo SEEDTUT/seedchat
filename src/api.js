@@ -157,6 +157,12 @@ export const adminApi = {
   removePost: (id) => request(`/api/admin/posts/${id}`, { method: 'DELETE' }),
   listUsers: () => request('/api/admin/users'),
   removeUser: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' }),
+  activateSponsor: (id) =>
+    request(`/api/admin/users/${id}/sponsor/activate`, { method: 'POST' }),
+  revokeSponsor: (id) =>
+    request(`/api/admin/users/${id}/sponsor/revoke`, { method: 'POST' }),
+  withdrawSponsor: (id) =>
+    request(`/api/admin/users/${id}/sponsor/withdraw`, { method: 'POST' }),
   listAnnouncements: () => request('/api/admin/announcements'),
   createAnnouncement: (body) =>
     request('/api/admin/announcements', {

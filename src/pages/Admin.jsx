@@ -13,6 +13,9 @@ import {
   ExternalLink,
   Eye,
   X,
+  Crown,
+  ShieldOff,
+  RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminApi, nameplatesApi } from '../api';
@@ -118,6 +121,38 @@ export default function Admin() {
       toast.success('已删除');
     } catch (err) {
       toast.error(err.message || '删除失败');
+    }
+  };
+
+  const handleActivateSponsor = async (u) => {
+    if (!window.confirm(`确定要手动激活用户「${u.nickname || u.username}」的VIP吗？\n（无需订单号）`)) return;
+    try {
+      await adminApi.activateSponsor(u.id);
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, is_sponsor: 1 } : x)));
+      toast.success('VIP已激活');
+    } catch (err) {
+      toast.error(err.message || '操作失败');
+    }
+  };
+
+  const handleRevokeSponsor = async (u) => {
+    if (!window.confirm(`确定要注销用户「${u.nickname || u.username}」的VIP吗？\n注销后用户将失去VIP，且关联的订单号无法再次激活。`)) return;
+    try {
+      await adminApi.revokeSponsor(u.id);
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, is_sponsor: 0 } : x)));
+      toast.success('VIP已注销');
+    } catch (err) {
+      toast.error(err.message || '操作失败');
+    }
+  };
+
+  const handleWithdrawSponsor = async (u) => {
+    if (!window.confirm(`确定要撤回用户「${u.nickname || u.username}」的VIP注销吗？\n撤回后该用户关联的订单号将可以再次被激活。`)) return;
+    try {
+      const result = await adminApi.withdrawSponsor(u.id);
+      toast.success(result.message || '已撤回');
+    } catch (err) {
+      toast.error(err.message || '操作失败');
     }
   };
 
@@ -329,6 +364,16 @@ export default function Admin() {
                             管理员
                           </span>
                         )}
+                        {u.is_sponsor ? (
+                          <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Crown size={11} />
+                            VIP
+                          </span>
+                        ) : (
+                          <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">
+                            普通
+                          </span>
+                        )}
                         {isMe && (
                           <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
                             我
@@ -340,16 +385,46 @@ export default function Admin() {
                       </span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDeleteUser(u)}
-                    disabled={disabled}
-                    className="flex-shrink-0 p-2 rounded-2xl text-gray-400 hover:bg-red-50 hover:text-red-500 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400"
-                    title={
-                      disabled ? (isMe ? '不能删除自己' : '不能删除其他管理员') : '删除'
-                    }
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="flex-shrink-0 flex items-center gap-1">
+                    {/* VIP 管理 */}
+                    {!u.is_sponsor && (
+                      <button
+                        onClick={() => handleActivateSponsor(u)}
+                        className="p-2 rounded-2xl text-gray-400 hover:bg-amber-50 hover:text-amber-500 transition"
+                        title="手动激活VIP"
+                      >
+                        <Crown size={18} />
+                      </button>
+                    )}
+                    {u.is_sponsor && (
+                      <button
+                        onClick={() => handleRevokeSponsor(u)}
+                        className="p-2 rounded-2xl text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition"
+                        title="注销VIP（订单号不可再用）"
+                      >
+                        <ShieldOff size={18} />
+                      </button>
+                    )}
+                    {!u.is_sponsor && (
+                      <button
+                        onClick={() => handleWithdrawSponsor(u)}
+                        className="p-2 rounded-2xl text-gray-400 hover:bg-blue-50 hover:text-blue-500 transition"
+                        title="撤回VIP注销（订单号可再次激活）"
+                      >
+                        <RotateCcw size={18} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteUser(u)}
+                      disabled={disabled}
+                      className="p-2 rounded-2xl text-gray-400 hover:bg-red-50 hover:text-red-500 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                      title={
+                        disabled ? (isMe ? '不能删除自己' : '不能删除其他管理员') : '删除'
+                      }
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
               );
             })
