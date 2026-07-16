@@ -8,6 +8,10 @@ import {
   X,
   CheckCheck,
   Play,
+  Shield,
+  MessageSquare,
+  Package,
+  Info,
 } from 'lucide-react';
 import { useStore } from '../store';
 import { notificationsApi } from '../api';
@@ -67,19 +71,27 @@ export default function MobileLayout() {
   // 检测是否为手机客户端（APK），仅手机客户端显示短视频入口
   const isMobileApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('SeedChatApp');
 
-  // 底部导航栏
-  const tabs = [
-    { to: '/', label: '论坛', icon: Home, end: true },
-    { to: '/friends', label: '好友', icon: Users, end: false },
-  ];
-
-  // 短视频按钮（仅手机客户端）
-  const shortVideoTab = { to: '/shortvideo', label: '短视频', icon: Play, end: false, isShortVideo: true };
-
-  const settingsTab = { to: '/settings', label: '我的', icon: SettingsIcon, end: false };
-
-  // 组装 tabs：论坛 + 好友 + [短视频] + 我的
-  const allTabs = isMobileApp ? [...tabs, shortVideoTab, settingsTab] : [...tabs, settingsTab];
+  // 底部导航栏 - 管理员显示完整功能，去掉短视频
+  const allTabs = showAdminFeatures
+    ? [
+        { to: '/', label: '论坛', icon: Home, end: true },
+        { to: '/messages', label: '消息', icon: MessageSquare, end: false },
+        { to: '/admin', label: '管理', icon: Shield, end: false },
+        { to: '/updates', label: '更新', icon: Package, end: false },
+        { to: '/settings', label: '我的', icon: SettingsIcon, end: false },
+      ]
+    : isMobileApp
+    ? [
+        { to: '/', label: '论坛', icon: Home, end: true },
+        { to: '/friends', label: '好友', icon: Users, end: false },
+        { to: '/shortvideo', label: '短视频', icon: Play, end: false, isShortVideo: true },
+        { to: '/settings', label: '我的', icon: SettingsIcon, end: false },
+      ]
+    : [
+        { to: '/', label: '论坛', icon: Home, end: true },
+        { to: '/friends', label: '好友', icon: Users, end: false },
+        { to: '/settings', label: '我的', icon: SettingsIcon, end: false },
+      ];
 
   // 处理短视频按钮点击 - 导航到 /shortvideo，WebViewClient 会拦截并打开 ShortVideoActivity
   const handleShortVideoClick = () => {
