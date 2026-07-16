@@ -22,6 +22,7 @@ import { formatTime } from '../lib/time';
 import { shortUid } from '../lib/uid';
 import UserAvatar from '../components/UserAvatar';
 import { NameplateBadge } from '../components/Nameplate';
+import SponsorName from '../components/SponsorName';
 
 // 图片压缩：限制最大宽度/高度
 function compressImage(file, maxSize) {
@@ -270,12 +271,12 @@ function PostCard({ post, onDelete, friendsSet }) {
               title="查看详情"
             >
               <h3 className="font-semibold text-gray-900 text-lg break-words hover:text-primary transition">
-                {post.title}
+                <SponsorName isSponsor={post.is_sponsor} variant="title">{post.title}</SponsorName>
               </h3>
             </button>
             <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5 flex-wrap">
               <span className="font-medium text-gray-500">
-                {post.nickname || post.username}
+                <SponsorName isSponsor={post.is_sponsor}>{post.nickname || post.username}</SponsorName>
               </span>
               <NameplateBadge obj={post} />
               <span>@{shortUid(post.user_id)}</span>
@@ -407,7 +408,7 @@ function PostCard({ post, onDelete, friendsSet }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-gray-800">
-                        {c.nickname || c.username}
+                        <SponsorName isSponsor={c.is_sponsor}>{c.nickname || c.username}</SponsorName>
                       </span>
                       <NameplateBadge obj={c} />
                       <span className="text-xs text-gray-400">

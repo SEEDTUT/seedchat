@@ -203,6 +203,7 @@ app.get('/me', authRequired, (c) => {
     avatar: user.avatar,
     is_admin: !!user.is_admin,
     is_admin_mode: !!user.is_admin_mode,
+    is_sponsor: !!user.is_sponsor,
     active_nameplate_id: user.active_nameplate_id || null,
     active_nameplate: user.active_nameplate || null,
     last_active: user.last_active || null,

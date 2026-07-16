@@ -20,7 +20,7 @@ app.get('/', (c) => {
 
     const posts = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at,
-              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.last_active,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.last_active, u.is_sponsor,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count,
               (SELECT COUNT(*) FROM seedchat_post_likes pl WHERE pl.post_id = p.id) AS like_count,
@@ -84,6 +84,7 @@ app.post('/', async (c) => {
       uid: user.uid,
       nickname: user.nickname,
       avatar: user.avatar,
+      is_sponsor: !!user.is_sponsor,
       active_nameplate_id: user.active_nameplate_id,
       active_nameplate: user.active_nameplate || null,
       title,
@@ -119,7 +120,7 @@ app.get('/:id', (c) => {
 
     const post = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at, p.view_count,
-              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.last_active,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.last_active, u.is_sponsor,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count,
               (SELECT COUNT(*) FROM seedchat_post_likes pl WHERE pl.post_id = p.id) AS like_count,
@@ -231,7 +232,7 @@ app.get('/:id/comments', (c) => {
 
     const comments = db.prepare(
       `SELECT cm.id, cm.post_id, cm.user_id, cm.content, cm.created_at,
-              u.nickname, u.avatar, u.uid, u.active_nameplate_id,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.is_sponsor,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_comments cm
        LEFT JOIN seedchat_users u ON cm.user_id = u.id

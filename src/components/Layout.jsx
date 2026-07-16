@@ -20,6 +20,7 @@ import { formatTime } from '../lib/time';
 import { shortUid } from '../lib/uid';
 import DefaultAvatar from './DefaultAvatar';
 import { NameplateBadge } from './Nameplate';
+import SponsorName from './SponsorName';
 import AvatarReminder from './AvatarReminder';
 
 // 顶部头像：有头像用图片，否则用几何默认头像
@@ -199,7 +200,7 @@ export default function Layout() {
       <HeaderAvatar user={user} />
       <div className="flex flex-col">
         <span className="text-sm text-gray-600 flex items-center gap-1.5 flex-wrap">
-          {user?.nickname || user?.username}
+          <SponsorName isSponsor={user?.is_sponsor}>{user?.nickname || user?.username}</SponsorName>
           <NameplateBadge obj={user} />
           {showAdminFeatures && (
             <span className="text-xs bg-primary-50 text-primary px-2 py-0.5 rounded-full">
@@ -337,7 +338,7 @@ export default function Layout() {
                   <HeaderAvatar user={user} size={32} />
                   <div className="flex flex-col min-w-0 text-left">
                     <span className="text-sm text-gray-600 flex items-center gap-1.5 flex-wrap">
-                      {user?.nickname || user?.username}
+                      <SponsorName isSponsor={user?.is_sponsor}>{user?.nickname || user?.username}</SponsorName>
                       <NameplateBadge obj={user} />
                     </span>
                     <span className="text-xs text-gray-400">

@@ -19,6 +19,7 @@ import { formatTime } from '../lib/time';
 import { shortUid } from '../lib/uid';
 import DefaultAvatar from './DefaultAvatar';
 import { NameplateBadge } from './Nameplate';
+import SponsorName from './SponsorName';
 import AvatarReminder from './AvatarReminder';
 
 function SidebarAvatar({ user, size = 40 }) {
@@ -191,7 +192,7 @@ export default function DesktopLayout() {
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <div className="text-xs text-white font-medium truncate flex items-center gap-1">
-                  {user?.nickname || user?.username}
+                  <SponsorName isSponsor={user?.is_sponsor}>{user?.nickname || user?.username}</SponsorName>
                   <NameplateBadge obj={user} />
                 </div>
                 <div className="text-[10px] text-gray-500 truncate">

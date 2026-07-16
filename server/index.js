@@ -18,6 +18,7 @@ import uploadRoutes from './routes/upload.js';
 import nameplatesRoutes from './routes/nameplates.js';
 import updatesRoutes from './routes/updates.js';
 import bilibiliRoutes from './routes/bilibili.js';
+import sponsorRoutes from './routes/sponsor.js';
 
 const app = new Hono();
 
@@ -35,6 +36,7 @@ app.route('/api/upload', uploadRoutes);
 app.route('/api/nameplates', nameplatesRoutes);
 app.route('/api/updates', updatesRoutes);
 app.route('/api/bilibili', bilibiliRoutes);
+app.route('/api/sponsor', sponsorRoutes);
 
 // 静态文件 - 带缓存头
 app.use('/assets/*', async (c, next) => {

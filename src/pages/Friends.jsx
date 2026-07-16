@@ -16,6 +16,7 @@ import { useStore } from '../store';
 import { shortUid } from '../lib/uid';
 import UserAvatar from '../components/UserAvatar';
 import { NameplateBadge } from '../components/Nameplate';
+import SponsorName from '../components/SponsorName';
 import NameplateManager from '../components/NameplateManager';
 
 export default function Friends() {
@@ -172,7 +173,7 @@ export default function Friends() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">
-                            {f.nickname || f.username}
+                            <SponsorName isSponsor={f.is_sponsor}>{f.nickname || f.username}</SponsorName>
                           </span>
                           <NameplateBadge obj={f} />
                           <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">
@@ -240,7 +241,7 @@ export default function Friends() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">
-                            {f.nickname || f.username}
+                            <SponsorName isSponsor={f.is_sponsor}>{f.nickname || f.username}</SponsorName>
                           </span>
                           <NameplateBadge obj={f} />
                           <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">
@@ -305,7 +306,7 @@ export default function Friends() {
                       <UserAvatar user={b} size={44} showOnline />
                       <div className="min-w-0">
                         <span className="font-medium text-gray-900 truncate block">
-                          {b.nickname || b.username}
+                          <SponsorName isSponsor={b.is_sponsor}>{b.nickname || b.username}</SponsorName>
                         </span>
                         <span className="text-xs text-gray-400 truncate block">
                           @{shortUid(b.id)}
@@ -368,7 +369,7 @@ export default function Friends() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">
-                            {u.nickname || u.username}
+                            <SponsorName isSponsor={u.is_sponsor}>{u.nickname || u.username}</SponsorName>
                           </span>
                           <NameplateBadge obj={u} />
                           {isMe && (

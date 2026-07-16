@@ -208,3 +208,12 @@ export const updatesApi = {
     }),
   remove: (id) => request(`/api/updates/${id}`, { method: 'DELETE' }),
 };
+
+export const sponsorApi = {
+  verify: (orderNo) =>
+    request('/api/sponsor/verify', {
+      method: 'POST',
+      body: JSON.stringify({ order_no: orderNo }),
+    }),
+  status: () => request('/api/sponsor/status'),
+};

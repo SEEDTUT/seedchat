@@ -33,7 +33,7 @@ function getUserFromRequest(c) {
   }
 
   const user = db.prepare(
-    `SELECT u.id, u.username, u.nickname, u.avatar, u.is_admin, u.uid, u.active_nameplate_id, u.last_active,
+    `SELECT u.id, u.username, u.nickname, u.avatar, u.is_admin, u.uid, u.active_nameplate_id, u.last_active, u.is_sponsor,
             np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
      FROM seedchat_users u
      LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id

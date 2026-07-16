@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
-import { Camera, User as UserIcon, KeyRound, Check, Tag, LogOut } from 'lucide-react';
+import { Camera, User as UserIcon, KeyRound, Check, Tag, LogOut, Crown, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { authApi, uploadApi } from '../api';
+import { authApi, uploadApi, sponsorApi } from '../api';
 import { useStore } from '../store';
 import { shortUid } from '../lib/uid';
 import DefaultAvatar from '../components/DefaultAvatar';
 import { NameplateBadge } from '../components/Nameplate';
 import NameplateManager from '../components/NameplateManager';
+import SponsorName from '../components/SponsorName';
 
 // 头像压缩：强制 300x300，居中裁剪为正方形
 function compressAvatar(file) {
@@ -82,6 +83,10 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+
+  // 赞助会员
+  const [orderNo, setOrderNo] = useState('');
+  const [verifyingSponsor, setVerifyingSponsor] = useState(false);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
@@ -163,6 +168,25 @@ export default function Settings() {
     }
   };
 
+  const handleVerifySponsor = async (e) => {
+    e.preventDefault();
+    if (!orderNo.trim()) {
+      toast.error('请输入爱发电订单号');
+      return;
+    }
+    setVerifyingSponsor(true);
+    try {
+      const result = await sponsorApi.verify(orderNo.trim());
+      updateUser({ is_sponsor: true });
+      setOrderNo('');
+      toast.success(result.message || '赞助验证成功！你已成为赞助会员');
+    } catch (err) {
+      toast.error(err.message || '赞助验证失败');
+    } finally {
+      setVerifyingSponsor(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">设置</h1>
@@ -178,7 +202,7 @@ export default function Settings() {
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-3">
               <span className="text-lg font-semibold text-gray-900">
-                {user?.nickname || user?.username}
+                <SponsorName isSponsor={user?.is_sponsor}>{user?.nickname || user?.username}</SponsorName>
               </span>
               <NameplateBadge obj={user} />
               <span className="text-sm text-gray-400">@{user?.uid || shortUid(user?.id)}</span>
@@ -303,6 +327,62 @@ export default function Settings() {
             </button>
           </div>
         </form>
+      </section>
+
+      {/* 赞助会员 */}
+      <section className="bg-white rounded-3xl shadow-sm hover:shadow-md transition p-6">
+        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-2">
+          <Crown size={20} className="text-amber-500" />
+          通过赞助成为会员
+        </h2>
+        {user?.is_sponsor ? (
+          <div className="flex items-center gap-3 py-4">
+            <Sparkles size={24} className="text-amber-500" />
+            <div>
+              <p className="text-sm text-gray-700">
+                你已是赞助会员！你的昵称将显示为
+                <SponsorName isSponsor={true} className="ml-1">金属光泽金色</SponsorName>
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                感谢你的支持，发帖时标题也会呈现金色光泽效果。
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-gray-500 mb-5">
+              通过爱发电赞助超过 3 元，输入订单号验证后即可成为会员。
+              会员昵称和帖子标题将显示为动态金属光泽金色，且每个订单号仅可使用一次。
+            </p>
+            <form onSubmit={handleVerifySponsor} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  爱发电订单号
+                </label>
+                <input
+                  type="text"
+                  value={orderNo}
+                  onChange={(e) => setOrderNo(e.target.value)}
+                  placeholder="请输入爱发电订单号"
+                  className="w-full sm:max-w-md px-4 py-3 rounded-2xl border border-gray-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none transition"
+                />
+                <p className="text-xs text-gray-400 mt-2">
+                  订单号可在爱发电「我的」-「赞助记录」中找到。
+                </p>
+              </div>
+              <div>
+                <button
+                  type="submit"
+                  disabled={verifyingSponsor}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-medium hover:from-amber-600 hover:to-yellow-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <Crown size={18} />
+                  {verifyingSponsor ? '验证中...' : '验证订单号'}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </section>
 
       {/* 退出登录 */}

@@ -18,7 +18,7 @@ app.get('/', (c) => {
     const user = c.get('user');
 
     const friends = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active, f.created_at,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active, u.is_sponsor, f.created_at,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_friendships r
                WHERE r.follower_id = u.id AND r.followee_id = ?) > 0 AS is_mutual
@@ -50,7 +50,7 @@ app.get('/users', (c) => {
     const user = c.get('user');
 
     const users = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active, u.is_sponsor,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_friendships f
                WHERE f.follower_id = ? AND f.followee_id = u.id) > 0 AS is_friend,
@@ -97,7 +97,7 @@ app.get('/blocked', (c) => {
     const user = c.get('user');
 
     const blocked = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active, u.is_sponsor,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_blocks b
        JOIN seedchat_users u ON b.blocked_id = u.id

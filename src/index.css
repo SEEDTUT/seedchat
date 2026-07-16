@@ -167,3 +167,72 @@ body.desktop-app ::-webkit-scrollbar-thumb:hover {
 body.desktop-app ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ===== 赞助会员金属光泽金色 ===== */
+/* 动态流动的金属光泽效果，应用于赞助会员的昵称和帖子标题 */
+
+@keyframes sponsorGoldFlow {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes sponsorGoldShine {
+  0%, 100% {
+    filter: brightness(1) drop-shadow(0 0 2px rgba(255, 215, 0, 0.4));
+  }
+  50% {
+    filter: brightness(1.2) drop-shadow(0 0 4px rgba(255, 215, 0, 0.6));
+  }
+}
+
+.sponsor-name {
+  background: linear-gradient(
+    90deg,
+    #b8860b 0%,
+    #daa520 15%,
+    #ffd700 30%,
+    #fff8dc 42%,
+    #ffd700 50%,
+    #daa520 65%,
+    #b8860b 80%,
+    #daa520 92%,
+    #b8860b 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-weight: 600;
+  animation: sponsorGoldFlow 3s linear infinite, sponsorGoldShine 2s ease-in-out infinite;
+  display: inline;
+}
+
+/* 帖子标题的金属光泽 - 稍大字号时效果更明显 */
+.sponsor-title {
+  background: linear-gradient(
+    90deg,
+    #b8860b 0%,
+    #daa520 12%,
+    #ffd700 25%,
+    #fffacd 38%,
+    #ffefd5 45%,
+    #ffd700 52%,
+    #daa520 68%,
+    #b8860b 82%,
+    #daa520 94%,
+    #b8860b 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-weight: 700;
+  animation: sponsorGoldFlow 3.5s linear infinite, sponsorGoldShine 2.5s ease-in-out infinite;
+  display: inline;
+}

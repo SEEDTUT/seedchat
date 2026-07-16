@@ -17,6 +17,7 @@ import { formatTime, formatFullTime } from '../lib/time';
 import { shortUid } from '../lib/uid';
 import UserAvatar from '../components/UserAvatar';
 import { NameplateBadge } from '../components/Nameplate';
+import SponsorName from '../components/SponsorName';
 
 function LoadingSpinner() {
   return (
@@ -158,7 +159,7 @@ export default function UserProfile() {
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold text-gray-900 break-words">
-                  {profile.nickname || profile.username}
+                  <SponsorName isSponsor={profile.is_sponsor}>{profile.nickname || profile.username}</SponsorName>
                 </h1>
                 <NameplateBadge obj={profile} />
               </div>
@@ -237,7 +238,7 @@ export default function UserProfile() {
                 style={{ animationDelay: `${Math.min(index * 50, 300)}ms` }}
               >
                 <h3 className="font-semibold text-gray-900 text-lg break-words">
-                  {post.title}
+                  <SponsorName isSponsor={post.is_sponsor} variant="title">{post.title}</SponsorName>
                 </h3>
                 <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
                   <span>{formatTime(post.created_at)}</span>

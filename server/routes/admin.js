@@ -38,7 +38,7 @@ adminRoutes.get('/posts', (c) => {
   try {
     const posts = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at,
-              u.nickname, u.avatar, u.uid, u.active_nameplate_id,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.is_sponsor,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_posts p
        LEFT JOIN seedchat_users u ON p.user_id = u.id
@@ -73,7 +73,7 @@ adminRoutes.delete('/posts/:id', (c) => {
 adminRoutes.get('/users', (c) => {
   try {
     const users = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.is_admin, u.active_nameplate_id, u.created_at,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.is_admin, u.active_nameplate_id, u.created_at, u.is_sponsor,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_users u
        LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id

@@ -21,6 +21,7 @@ import { formatTime } from '../lib/time';
 import { shortUid } from '../lib/uid';
 import UserAvatar from '../components/UserAvatar';
 import { NameplateBadge } from '../components/Nameplate';
+import SponsorName from '../components/SponsorName';
 
 // 内容中的 URL 解析为可点击链接（与 Home.jsx 保持一致）
 const URL_REGEX =
@@ -362,14 +363,16 @@ export default function PostDetail() {
             </button>
             <div className="min-w-0 flex-1">
               <h1 className="font-semibold text-gray-900 text-xl md:text-2xl break-words">
-                {post.title}
+                <SponsorName isSponsor={post.is_sponsor} variant="title">{post.title}</SponsorName>
               </h1>
               <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 flex-wrap">
                 <button
                   onClick={openUserProfile}
                   className="font-medium text-gray-500 hover:text-primary transition"
                 >
-                  {post.nickname || post.username}
+                  <SponsorName isSponsor={post.is_sponsor}>
+                    {post.nickname || post.username}
+                  </SponsorName>
                 </button>
                 <NameplateBadge obj={post} />
                 <span>@{shortUid(post.user_id)}</span>
@@ -495,7 +498,7 @@ export default function PostDetail() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-gray-800">
-                        {c.nickname || c.username}
+                        <SponsorName isSponsor={c.is_sponsor}>{c.nickname || c.username}</SponsorName>
                       </span>
                       <NameplateBadge obj={c} />
                       <span className="text-xs text-gray-400">

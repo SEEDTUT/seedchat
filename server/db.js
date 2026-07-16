@@ -43,6 +43,8 @@ export function initDB() {
   addColumnIfMissing('seedchat_users', 'active_nameplate_id', 'TEXT');
   // last_active 记录用户最近一次活跃时间，用于在线状态判断（每次 API 请求更新）
   addColumnIfMissing('seedchat_users', 'last_active', 'TEXT');
+  // is_sponsor 标记用户是否为赞助会员（通过爱发电赞助验证后设为 1）
+  addColumnIfMissing('seedchat_users', 'is_sponsor', 'INTEGER DEFAULT 0');
 
   // Posts table
   addColumnIfMissing('seedchat_posts', 'nickname', 'TEXT');

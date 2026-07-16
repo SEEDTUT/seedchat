@@ -112,3 +112,12 @@ CREATE TABLE IF NOT EXISTS seedchat_post_likes (
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
   PRIMARY KEY (post_id, user_id)
 );
+
+-- 赞助会员订单表：记录已使用的爱发电订单号，防止订单号被多个账号重复使用
+CREATE TABLE IF NOT EXISTS seedchat_sponsor_orders (
+  id TEXT PRIMARY KEY,
+  order_no TEXT UNIQUE NOT NULL,
+  user_id TEXT NOT NULL,
+  amount TEXT NOT NULL,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
