@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Home,
   Users,
@@ -12,6 +12,9 @@ import {
   MessageSquare,
   Package,
   Info,
+  FileText,
+  Tag,
+  Megaphone,
 } from 'lucide-react';
 import { useStore } from '../store';
 import { notificationsApi } from '../api';
@@ -71,14 +74,14 @@ export default function MobileLayout() {
   // 检测是否为手机客户端（APK），仅手机客户端显示短视频入口
   const isMobileApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('SeedChatApp');
 
-  // 底部导航栏 - 管理员显示完整功能，去掉短视频
+  // 底部导航栏 - 管理员直接显示管理功能标签
   const allTabs = showAdminFeatures
     ? [
-        { to: '/', label: '论坛', icon: Home, end: true },
-        { to: '/messages', label: '消息', icon: MessageSquare, end: false },
-        { to: '/admin', label: '管理', icon: Shield, end: false },
-        { to: '/updates', label: '更新', icon: Package, end: false },
-        { to: '/settings', label: '我的', icon: SettingsIcon, end: false },
+        { to: '/admin?tab=posts', label: '帖子', icon: FileText, tabKey: 'posts' },
+        { to: '/admin?tab=users', label: '用户', icon: Users, tabKey: 'users' },
+        { to: '/admin?tab=nameplates', label: '铭牌', icon: Tag, tabKey: 'nameplates' },
+        { to: '/admin?tab=announcements', label: '公告', icon: Megaphone, tabKey: 'announcements' },
+        { to: '/admin?tab=updates', label: '更新', icon: Package, tabKey: 'updates' },
       ]
     : isMobileApp
     ? [
@@ -158,7 +161,15 @@ export default function MobileLayout() {
     if (path.startsWith('/user/')) return '用户主页';
     if (path.startsWith('/about')) return '关于';
     if (path.startsWith('/updates')) return '更新日志';
-    if (path.startsWith('/admin')) return '管理后台';
+    if (path.startsWith('/admin')) {
+      const adminTab = params.get('tab');
+      if (adminTab === 'posts') return '帖子管理';
+      if (adminTab === 'users') return '用户管理';
+      if (adminTab === 'nameplates') return '铭牌管理';
+      if (adminTab === 'announcements') return '公告管理';
+      if (adminTab === 'updates') return '更新管理';
+      return '管理后台';
+    }
     return 'SeedChat';
   };
 
@@ -193,7 +204,7 @@ export default function MobileLayout() {
               </div>
             )}
 
-            {/* Right: notification bell */}
+            {/* Right: notification bell + settings (admin) */}
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setNotifOpen(true)}
@@ -206,6 +217,14 @@ export default function MobileLayout() {
                   </span>
                 )}
               </button>
+              {showAdminFeatures && (
+                <Link
+                  to="/settings"
+                  className="p-2 text-gray-600 active:text-primary"
+                >
+                  <SettingsIcon size={20} />
+                </Link>
+              )}
             </div>
           </div>
         </header>
@@ -308,6 +327,29 @@ export default function MobileLayout() {
                   <Icon size={22} strokeWidth={2} className="text-gray-400" />
                   <span className="text-[10px] text-gray-400">{tab.label}</span>
                 </button>
+              );
+            }
+            if (tab.tabKey) {
+              const currentTab = new URLSearchParams(location.search).get('tab') || 'posts';
+              const isActive = currentTab === tab.tabKey;
+              return (
+                <Link
+                  key={tab.to}
+                  to={tab.to}
+                  className="flex-1 flex flex-col items-center justify-center gap-0.5 active:opacity-60 transition"
+                  style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                >
+                  <Icon
+                    size={22}
+                    strokeWidth={isActive ? 2.5 : 2}
+                    className={isActive ? 'text-primary' : 'text-gray-400'}
+                  />
+                  <span
+                    className={`text-[10px] ${isActive ? 'text-primary font-medium' : 'text-gray-400'}`}
+                  >
+                    {tab.label}
+                  </span>
+                </Link>
               );
             }
             return (

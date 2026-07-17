@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FileText,
   Users,
@@ -36,7 +36,8 @@ const TABS = [
 export default function Admin() {
   const navigate = useNavigate();
   const user = useStore((s) => s.user);
-  const [tab, setTab] = useState('posts');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'posts';
   const [posts, setPosts] = useState([]);
   const [users, setUsers] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -267,7 +268,7 @@ export default function Admin() {
         {TABS.map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => setSearchParams({ tab: t.key })}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-medium whitespace-nowrap transition ${
               tab === t.key
                 ? 'bg-primary text-white'
