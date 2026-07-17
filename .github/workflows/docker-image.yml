@@ -10,6 +10,9 @@ on:
       - 'server/**'
       - 'schema.sql'
       - 'public/**'
+      - 'src/**'
+      - 'index.html'
+      - 'vite.config.js'
 
 env:
   REGISTRY: ghcr.io
