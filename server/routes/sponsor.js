@@ -11,6 +11,8 @@ const AFDIAN_TOKEN = process.env.AFDIAN_TOKEN || 'Y9GjC3UF5dTvwNcamkqSsbpghKAHJE
 const AFDIAN_API_URL = 'https://ifdian.net/api/open/query-order';
 // 赞助门槛金额（元），超过此金额才能成为会员
 const SPONSOR_MIN_AMOUNT = 3;
+// SVIP 门槛金额（元），超过此金额成为 SVIP 会员
+const SVIP_MIN_AMOUNT = 10;
 
 // 计算爱发电 API 签名
 // sign = md5(token + 'params' + params + 'ts' + ts + 'user_id' + userId)
@@ -103,7 +105,9 @@ app.post('/verify', authRequired, async (c) => {
     }
 
     // 验证通过，将用户标记为赞助会员
-    db.prepare('UPDATE seedchat_users SET is_sponsor = 1 WHERE id = ?').run(user.id);
+    // 金额 >= 10 元为 SVIP (tier=2)，否则为 VIP (tier=1)
+    const tier = amount >= SVIP_MIN_AMOUNT ? 2 : 1;
+    db.prepare('UPDATE seedchat_users SET is_sponsor = 1, sponsor_tier = ? WHERE id = ?').run(tier, user.id);
 
     // 记录订单使用情况
     const recordId = crypto.randomUUID();
@@ -112,8 +116,9 @@ app.post('/verify', authRequired, async (c) => {
     ).run(recordId, orderNo, user.id, order.total_amount);
 
     return c.json({
-      message: '赞助验证成功！你已成为赞助会员',
+      message: tier === 2 ? '赞助验证成功！你已成为 SVIP 会员' : '赞助验证成功！你已成为赞助会员',
       is_sponsor: true,
+      sponsor_tier: tier,
       amount: order.total_amount,
     });
   } catch (err) {
@@ -125,7 +130,7 @@ app.post('/verify', authRequired, async (c) => {
 // 返回当前用户的赞助状态
 app.get('/status', authRequired, (c) => {
   const user = c.get('user');
-  return c.json({ is_sponsor: !!user.is_sponsor });
+  return c.json({ is_sponsor: !!user.is_sponsor, sponsor_tier: user.sponsor_tier || 0 });
 });
 
 export default app;

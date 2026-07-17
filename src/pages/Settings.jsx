@@ -177,7 +177,7 @@ export default function Settings() {
     setVerifyingSponsor(true);
     try {
       const result = await sponsorApi.verify(orderNo.trim());
-      updateUser({ is_sponsor: true });
+      updateUser({ is_sponsor: true, sponsor_tier: result.sponsor_tier || 1 });
       setOrderNo('');
       toast.success(result.message || '赞助验证成功！你已成为赞助会员');
     } catch (err) {
@@ -202,7 +202,7 @@ export default function Settings() {
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-3">
               <span className="text-lg font-semibold text-gray-900">
-                <SponsorName isSponsor={user?.is_sponsor}>{user?.nickname || user?.username}</SponsorName>
+                <SponsorName isSponsor={user?.is_sponsor} sponsorTier={user?.sponsor_tier}>{user?.nickname || user?.username}</SponsorName>
               </span>
               <NameplateBadge obj={user} />
               <span className="text-sm text-gray-400">@{user?.uid || shortUid(user?.id)}</span>
@@ -337,22 +337,33 @@ export default function Settings() {
         </h2>
         {user?.is_sponsor ? (
           <div className="flex items-center gap-3 py-4">
-            <Sparkles size={24} className="text-amber-500" />
+            <Sparkles size={24} className={user?.sponsor_tier === 2 ? 'text-purple-500' : 'text-amber-500'} />
             <div>
               <p className="text-sm text-gray-700">
-                你已是赞助会员！你的昵称将显示为
-                <SponsorName isSponsor={true} className="ml-1">金属光泽金色</SponsorName>
+                {user?.sponsor_tier === 2 ? (
+                  <>
+                    你已是 <span className="font-semibold text-purple-600">SVIP</span> 会员！你的昵称将显示为
+                    <SponsorName sponsorTier={2} className="ml-1">金紫混色粒子特效</SponsorName>
+                  </>
+                ) : (
+                  <>
+                    你已是赞助会员！你的昵称将显示为
+                    <SponsorName isSponsor={true} className="ml-1">金属光泽金色</SponsorName>
+                  </>
+                )}
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                感谢你的支持，发帖时标题也会呈现金色光泽效果。
+                {user?.sponsor_tier === 2
+                  ? '感谢你的慷慨支持！发帖时标题也会呈现金紫粒子流动效果。'
+                  : '感谢你的支持，发帖时标题也会呈现金色光泽效果。'}
               </p>
             </div>
           </div>
         ) : (
           <>
             <p className="text-sm text-gray-500 mb-5">
-              通过爱发电赞助超过 3 元，输入订单号验证后即可成为会员。
-              会员昵称和帖子标题将显示为动态金属光泽金色，且每个订单号仅可使用一次。
+              通过爱发电赞助超过 3 元可成为 VIP 会员，超过 10 元可成为 SVIP 会员。
+              VIP 昵称显示金色金属光泽，SVIP 昵称显示金紫混色粒子特效，且每个订单号仅可使用一次。
             </p>
             <form onSubmit={handleVerifySponsor} className="space-y-4">
               <div>

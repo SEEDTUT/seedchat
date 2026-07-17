@@ -363,14 +363,14 @@ export default function PostDetail() {
             </button>
             <div className="min-w-0 flex-1">
               <h1 className="font-semibold text-gray-900 text-xl md:text-2xl break-words">
-                <SponsorName isSponsor={post.is_sponsor} variant="title">{post.title}</SponsorName>
+                <SponsorName isSponsor={post.is_sponsor} sponsorTier={post.sponsor_tier} variant="title">{post.title}</SponsorName>
               </h1>
               <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 flex-wrap">
                 <button
                   onClick={openUserProfile}
                   className="font-medium text-gray-500 hover:text-primary transition"
                 >
-                  <SponsorName isSponsor={post.is_sponsor}>
+                  <SponsorName isSponsor={post.is_sponsor} sponsorTier={post.sponsor_tier}>
                     {post.nickname || post.username}
                   </SponsorName>
                 </button>
@@ -498,7 +498,7 @@ export default function PostDetail() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-gray-800">
-                        <SponsorName isSponsor={c.is_sponsor}>{c.nickname || c.username}</SponsorName>
+                        <SponsorName isSponsor={c.is_sponsor} sponsorTier={c.sponsor_tier}>{c.nickname || c.username}</SponsorName>
                       </span>
                       <NameplateBadge obj={c} />
                       <span className="text-xs text-gray-400">

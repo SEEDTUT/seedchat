@@ -204,6 +204,7 @@ app.get('/me', authRequired, (c) => {
     is_admin: !!user.is_admin,
     is_admin_mode: !!user.is_admin_mode,
     is_sponsor: !!user.is_sponsor,
+    sponsor_tier: user.sponsor_tier || 0,
     active_nameplate_id: user.active_nameplate_id || null,
     active_nameplate: user.active_nameplate || null,
     last_active: user.last_active || null,

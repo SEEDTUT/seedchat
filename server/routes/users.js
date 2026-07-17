@@ -18,7 +18,7 @@ app.get('/:userId', (c) => {
     const { userId } = c.req.param();
 
     const user = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.created_at, u.last_active, u.is_sponsor,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.created_at, u.last_active, u.is_sponsor, u.sponsor_tier,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_users u
        LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
@@ -75,7 +75,7 @@ app.get('/:userId/posts', (c) => {
 
     const posts = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at, p.view_count,
-              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.is_sponsor,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.is_sponsor, u.sponsor_tier,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color,
               (SELECT COUNT(*) FROM seedchat_comments c WHERE c.post_id = p.id) AS comment_count,
               (SELECT COUNT(*) FROM seedchat_post_likes pl WHERE pl.post_id = p.id) AS like_count,

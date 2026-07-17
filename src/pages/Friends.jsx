@@ -173,7 +173,7 @@ export default function Friends() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">
-                            <SponsorName isSponsor={f.is_sponsor}>{f.nickname || f.username}</SponsorName>
+                            <SponsorName isSponsor={f.is_sponsor} sponsorTier={f.sponsor_tier}>{f.nickname || f.username}</SponsorName>
                           </span>
                           <NameplateBadge obj={f} />
                           <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">
@@ -241,7 +241,7 @@ export default function Friends() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">
-                            <SponsorName isSponsor={f.is_sponsor}>{f.nickname || f.username}</SponsorName>
+                            <SponsorName isSponsor={f.is_sponsor} sponsorTier={f.sponsor_tier}>{f.nickname || f.username}</SponsorName>
                           </span>
                           <NameplateBadge obj={f} />
                           <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">
@@ -306,7 +306,7 @@ export default function Friends() {
                       <UserAvatar user={b} size={44} showOnline />
                       <div className="min-w-0">
                         <span className="font-medium text-gray-900 truncate block">
-                          <SponsorName isSponsor={b.is_sponsor}>{b.nickname || b.username}</SponsorName>
+                          <SponsorName isSponsor={b.is_sponsor} sponsorTier={b.sponsor_tier}>{b.nickname || b.username}</SponsorName>
                         </span>
                         <span className="text-xs text-gray-400 truncate block">
                           @{shortUid(b.id)}
@@ -369,7 +369,7 @@ export default function Friends() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">
-                            <SponsorName isSponsor={u.is_sponsor}>{u.nickname || u.username}</SponsorName>
+                            <SponsorName isSponsor={u.is_sponsor} sponsorTier={u.sponsor_tier}>{u.nickname || u.username}</SponsorName>
                           </span>
                           <NameplateBadge obj={u} />
                           {isMe && (

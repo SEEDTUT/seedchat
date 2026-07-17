@@ -45,6 +45,8 @@ export function initDB() {
   addColumnIfMissing('seedchat_users', 'last_active', 'TEXT');
   // is_sponsor 标记用户是否为赞助会员（通过爱发电赞助验证后设为 1）
   addColumnIfMissing('seedchat_users', 'is_sponsor', 'INTEGER DEFAULT 0');
+  // sponsor_tier 赞助等级：0=普通, 1=VIP(>=3元), 2=SVIP(>=10元)
+  addColumnIfMissing('seedchat_users', 'sponsor_tier', 'INTEGER DEFAULT 0');
 
   // Posts table
   addColumnIfMissing('seedchat_posts', 'nickname', 'TEXT');

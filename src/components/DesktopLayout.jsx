@@ -192,7 +192,7 @@ export default function DesktopLayout() {
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <div className="text-xs text-white font-medium truncate flex items-center gap-1">
-                  <SponsorName isSponsor={user?.is_sponsor}>{user?.nickname || user?.username}</SponsorName>
+                  <SponsorName isSponsor={user?.is_sponsor} sponsorTier={user?.sponsor_tier}>{user?.nickname || user?.username}</SponsorName>
                   <NameplateBadge obj={user} />
                 </div>
                 <div className="text-[10px] text-gray-500 truncate">

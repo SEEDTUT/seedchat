@@ -38,7 +38,7 @@ adminRoutes.get('/posts', (c) => {
   try {
     const posts = db.prepare(
       `SELECT p.id, p.user_id, p.title, p.content, p.image, p.created_at,
-              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.is_sponsor,
+              u.nickname, u.avatar, u.uid, u.active_nameplate_id, u.is_sponsor, u.sponsor_tier,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_posts p
        LEFT JOIN seedchat_users u ON p.user_id = u.id
@@ -73,7 +73,7 @@ adminRoutes.delete('/posts/:id', (c) => {
 adminRoutes.get('/users', (c) => {
   try {
     const users = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.is_admin, u.active_nameplate_id, u.created_at, u.is_sponsor,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.is_admin, u.active_nameplate_id, u.created_at, u.is_sponsor, u.sponsor_tier,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_users u
        LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id
@@ -93,26 +93,33 @@ adminRoutes.get('/users', (c) => {
   }
 });
 
-// POST /api/admin/users/:id/sponsor/activate - 手动激活用户VIP（无需订单号）
-adminRoutes.post('/users/:id/sponsor/activate', (c) => {
+// POST /api/admin/users/:id/sponsor/activate - 手动激活用户VIP/SVIP（无需订单号）
+// body: { tier?: 1 | 2 }  默认 tier=1 (VIP)
+adminRoutes.post('/users/:id/sponsor/activate', async (c) => {
   try {
     const { id } = c.req.param();
+    const body = await c.req.json().catch(() => ({}));
+    const tier = body.tier === 2 ? 2 : 1;
 
     const targetUser = db.prepare(
-      'SELECT id, is_sponsor FROM seedchat_users WHERE id = ?'
+      'SELECT id, is_sponsor, sponsor_tier FROM seedchat_users WHERE id = ?'
     ).get(id);
 
     if (!targetUser) {
       return c.json({ error: '用户不存在' }, 404);
     }
 
-    if (targetUser.is_sponsor) {
-      return c.json({ error: '该用户已是VIP' }, 400);
+    if (targetUser.is_sponsor && targetUser.sponsor_tier >= tier) {
+      return c.json({ error: tier === 2 ? '该用户已是SVIP' : '该用户已是VIP' }, 400);
     }
 
-    db.prepare('UPDATE seedchat_users SET is_sponsor = 1 WHERE id = ?').run(id);
+    db.prepare('UPDATE seedchat_users SET is_sponsor = 1, sponsor_tier = ? WHERE id = ?').run(tier, id);
 
-    return c.json({ message: 'VIP已激活', is_sponsor: true });
+    return c.json({
+      message: tier === 2 ? 'SVIP已激活' : 'VIP已激活',
+      is_sponsor: true,
+      sponsor_tier: tier,
+    });
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
   }
@@ -124,7 +131,7 @@ adminRoutes.post('/users/:id/sponsor/revoke', (c) => {
     const { id } = c.req.param();
 
     const targetUser = db.prepare(
-      'SELECT id, is_sponsor FROM seedchat_users WHERE id = ?'
+      'SELECT id, is_sponsor, sponsor_tier FROM seedchat_users WHERE id = ?'
     ).get(id);
 
     if (!targetUser) {
@@ -135,11 +142,11 @@ adminRoutes.post('/users/:id/sponsor/revoke', (c) => {
       return c.json({ error: '该用户不是VIP' }, 400);
     }
 
-    // 注销VIP：is_sponsor 设为 0
+    // 注销VIP/SVIP：is_sponsor 和 sponsor_tier 均重置
     // 订单记录保留在 seedchat_sponsor_orders 中，因此该订单号无法再被激活
-    db.prepare('UPDATE seedchat_users SET is_sponsor = 0 WHERE id = ?').run(id);
+    db.prepare('UPDATE seedchat_users SET is_sponsor = 0, sponsor_tier = 0 WHERE id = ?').run(id);
 
-    return c.json({ message: 'VIP已注销，关联订单号无法再次激活', is_sponsor: false });
+    return c.json({ message: 'VIP已注销，关联订单号无法再次激活', is_sponsor: false, sponsor_tier: 0 });
   } catch (err) {
     return c.json({ error: err.message || '服务器内部错误' }, 500);
   }

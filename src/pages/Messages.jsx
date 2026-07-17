@@ -448,7 +448,7 @@ export default function Messages() {
         <div className="min-w-0 flex-1">
           <div className="font-semibold text-gray-900 truncate flex items-center gap-2">
             <span className="truncate">
-              <SponsorName isSponsor={chatTarget.is_sponsor}>{chatTarget.nickname || chatTarget.username}</SponsorName>
+              <SponsorName isSponsor={chatTarget.is_sponsor} sponsorTier={chatTarget.sponsor_tier}>{chatTarget.nickname || chatTarget.username}</SponsorName>
             </span>
             <NameplateBadge obj={chatTarget} />
           </div>

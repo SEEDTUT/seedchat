@@ -16,6 +16,7 @@ import {
   Crown,
   ShieldOff,
   RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminApi, nameplatesApi } from '../api';
@@ -125,23 +126,25 @@ export default function Admin() {
     }
   };
 
-  const handleActivateSponsor = async (u) => {
-    if (!window.confirm(`确定要手动激活用户「${u.nickname || u.username}」的VIP吗？\n（无需订单号）`)) return;
+  const handleActivateSponsor = async (u, tier = 1) => {
+    const tierName = tier === 2 ? 'SVIP' : 'VIP';
+    if (!window.confirm(`确定要手动激活用户「${u.nickname || u.username}」的${tierName}吗？\n（无需订单号）`)) return;
     try {
-      await adminApi.activateSponsor(u.id);
-      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, is_sponsor: 1 } : x)));
-      toast.success('VIP已激活');
+      await adminApi.activateSponsor(u.id, tier);
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, is_sponsor: 1, sponsor_tier: tier } : x)));
+      toast.success(`${tierName}已激活`);
     } catch (err) {
       toast.error(err.message || '操作失败');
     }
   };
 
   const handleRevokeSponsor = async (u) => {
-    if (!window.confirm(`确定要注销用户「${u.nickname || u.username}」的VIP吗？\n注销后用户将失去VIP，且关联的订单号无法再次激活。`)) return;
+    const tierName = u.sponsor_tier === 2 ? 'SVIP' : 'VIP';
+    if (!window.confirm(`确定要注销用户「${u.nickname || u.username}」的${tierName}吗？\n注销后用户将失去${tierName}，且关联的订单号无法再次激活。`)) return;
     try {
       await adminApi.revokeSponsor(u.id);
-      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, is_sponsor: 0 } : x)));
-      toast.success('VIP已注销');
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, is_sponsor: 0, sponsor_tier: 0 } : x)));
+      toast.success(`${tierName}已注销`);
     } catch (err) {
       toast.error(err.message || '操作失败');
     }
@@ -365,7 +368,12 @@ export default function Admin() {
                             管理员
                           </span>
                         )}
-                        {u.is_sponsor ? (
+                        {u.is_sponsor && u.sponsor_tier === 2 ? (
+                          <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Crown size={11} />
+                            SVIP
+                          </span>
+                        ) : u.is_sponsor ? (
                           <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full flex items-center gap-1">
                             <Crown size={11} />
                             VIP
@@ -387,21 +395,30 @@ export default function Admin() {
                     </div>
                   </div>
                   <div className="flex-shrink-0 flex items-center gap-1">
-                    {/* VIP 管理 */}
+                    {/* VIP/SVIP 管理 */}
                     {!u.is_sponsor && (
                       <button
-                        onClick={() => handleActivateSponsor(u)}
+                        onClick={() => handleActivateSponsor(u, 1)}
                         className="p-2 rounded-2xl text-gray-400 hover:bg-amber-50 hover:text-amber-500 transition"
                         title="手动激活VIP"
                       >
                         <Crown size={18} />
                       </button>
                     )}
+                    {(!u.is_sponsor || u.sponsor_tier !== 2) && (
+                      <button
+                        onClick={() => handleActivateSponsor(u, 2)}
+                        className="p-2 rounded-2xl text-gray-400 hover:bg-purple-50 hover:text-purple-500 transition"
+                        title="手动激活SVIP"
+                      >
+                        <Sparkles size={18} />
+                      </button>
+                    )}
                     {u.is_sponsor && (
                       <button
                         onClick={() => handleRevokeSponsor(u)}
                         className="p-2 rounded-2xl text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition"
-                        title="注销VIP（订单号不可再用）"
+                        title="注销VIP/SVIP（订单号不可再用）"
                       >
                         <ShieldOff size={18} />
                       </button>

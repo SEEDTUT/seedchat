@@ -157,8 +157,11 @@ export const adminApi = {
   removePost: (id) => request(`/api/admin/posts/${id}`, { method: 'DELETE' }),
   listUsers: () => request('/api/admin/users'),
   removeUser: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' }),
-  activateSponsor: (id) =>
-    request(`/api/admin/users/${id}/sponsor/activate`, { method: 'POST' }),
+  activateSponsor: (id, tier = 1) =>
+    request(`/api/admin/users/${id}/sponsor/activate`, {
+      method: 'POST',
+      body: JSON.stringify({ tier }),
+    }),
   revokeSponsor: (id) =>
     request(`/api/admin/users/${id}/sponsor/revoke`, { method: 'POST' }),
   withdrawSponsor: (id) =>

@@ -29,6 +29,7 @@ app.get('/', (c) => {
          conv.nameplate_text_color,
          conv.last_active,
          conv.is_sponsor,
+         conv.sponsor_tier,
          conv.last_message,
          conv.last_time,
          COALESCE(unread.unread_count, 0) AS unread_count
@@ -42,6 +43,7 @@ app.get('/', (c) => {
            other_user.active_nameplate_id AS active_nameplate_id,
            other_user.last_active AS last_active,
            other_user.is_sponsor AS is_sponsor,
+           other_user.sponsor_tier AS sponsor_tier,
            np.text AS nameplate_text,
            np.bg_color AS nameplate_bg_color,
            np.text_color AS nameplate_text_color,
@@ -121,7 +123,7 @@ app.get('/:userId', (c) => {
     // 查询聊天对方（chat partner）的用户资料及激活铭牌
     // 将对方的 active_nameplate 附加到每条消息上，供前端聊天面板头部展示对方铭牌
     const partner = db.prepare(
-      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active, u.is_sponsor,
+      `SELECT u.id, u.uid, u.username, u.nickname, u.avatar, u.active_nameplate_id, u.last_active, u.is_sponsor, u.sponsor_tier,
               np.text AS nameplate_text, np.bg_color AS nameplate_bg_color, np.text_color AS nameplate_text_color
        FROM seedchat_users u
        LEFT JOIN seedchat_nameplates np ON u.active_nameplate_id = np.id

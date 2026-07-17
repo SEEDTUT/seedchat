@@ -236,3 +236,124 @@ body.desktop-app ::-webkit-scrollbar-track {
   animation: sponsorGoldFlow 3.5s linear infinite, sponsorGoldShine 2.5s ease-in-out infinite;
   display: inline;
 }
+
+/* ===== SVIP 金紫混色流动 + 粒子飘散特效 ===== */
+
+@keyframes svipFlow {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes svipShine {
+  0%, 100% {
+    filter: brightness(1) drop-shadow(0 0 3px rgba(168, 85, 247, 0.5)) drop-shadow(0 0 2px rgba(255, 215, 0, 0.4));
+  }
+  50% {
+    filter: brightness(1.25) drop-shadow(0 0 6px rgba(168, 85, 247, 0.7)) drop-shadow(0 0 4px rgba(255, 215, 0, 0.6));
+  }
+}
+
+.svip-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.svip-name {
+  background: linear-gradient(
+    90deg,
+    #8b008b 0%,
+    #b8860b 8%,
+    #daa520 16%,
+    #9932cc 28%,
+    #ffd700 38%,
+    #fff8dc 46%,
+    #a855f7 54%,
+    #ffd700 62%,
+    #9932cc 72%,
+    #daa520 82%,
+    #b8860b 90%,
+    #8b008b 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-weight: 700;
+  animation: svipFlow 2.5s linear infinite, svipShine 2s ease-in-out infinite;
+  display: inline;
+}
+
+.svip-title {
+  background: linear-gradient(
+    90deg,
+    #8b008b 0%,
+    #b8860b 7%,
+    #daa520 14%,
+    #9932cc 22%,
+    #ffd700 32%,
+    #fffacd 42%,
+    #c084fc 50%,
+    #ffefd5 56%,
+    #ffd700 64%,
+    #9932cc 74%,
+    #daa520 84%,
+    #b8860b 92%,
+    #8b008b 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-weight: 800;
+  animation: svipFlow 3s linear infinite, svipShine 2.5s ease-in-out infinite;
+  display: inline;
+}
+
+/* SVIP 粒子容器 */
+.svip-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* 单个粒子：金紫色小光点向上飘散 */
+.svip-particle {
+  position: absolute;
+  bottom: 50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.9) 0%, rgba(168, 85, 247, 0.6) 50%, transparent 100%);
+  box-shadow: 0 0 4px rgba(168, 85, 247, 0.6), 0 0 2px rgba(255, 215, 0, 0.8);
+  opacity: 0;
+  animation-name: svipParticleFloat;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes svipParticleFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-12px) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.3);
+  }
+}
