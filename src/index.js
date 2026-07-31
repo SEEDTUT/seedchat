@@ -849,6 +849,26 @@ async function handleGroups(request, env, segments, method) {
     if (segments[3] === 'leave' && method === 'POST') {
       return leaveGroup(request, env, groupId);
     }
+
+    // POST /api/groups/:id/invite - 生成邀请链接
+    if (segments[3] === 'invite' && method === 'POST') {
+      return createGroupInvite(request, env, groupId);
+    }
+
+    // GET /api/groups/:id/invite - 获取现有邀请码
+    if (segments[3] === 'invite' && method === 'GET') {
+      return getGroupInvite(request, env, groupId);
+    }
+  }
+
+  // GET /api/groups/invite/:code - 通过邀请码获取群信息
+  if (segments[2] === 'invite' && segments[3] && method === 'GET') {
+    return getInviteInfo(request, env, segments[3]);
+  }
+
+  // POST /api/groups/join - 通过邀请码加群
+  if (segments[2] === 'join' && method === 'POST') {
+    return joinGroupByCode(request, env);
   }
 
   return json({ error: '接口不存在' }, 404);
@@ -1061,6 +1081,131 @@ async function deleteGroup(request, env, groupId) {
 
   await env.DB.prepare('DELETE FROM groups WHERE id = ?').bind(groupId).run();
   return json({ success: true });
+}
+
+// 群邀请：生成邀请码
+async function createGroupInvite(request, env, groupId) {
+  const { error, user } = await requireAuth(request, env);
+  if (error) return error;
+
+  const membership = await env.DB.prepare(
+    'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?'
+  ).bind(groupId, user.id).first();
+  if (!membership) return json({ error: '你不是群成员' }, 403);
+
+  // 检查是否已有有效邀请码
+  const existing = await env.DB.prepare(
+    "SELECT * FROM group_invites WHERE group_id = ? AND (expires_at IS NULL OR expires_at > ?)"
+  ).bind(groupId, Math.floor(Date.now() / 1000)).first();
+
+  if (existing) {
+    return json({ code: existing.code, url: `${new URL(request.url).origin}/#join/${existing.code}` });
+  }
+
+  // 生成新的邀请码
+  const code = generateToken().substring(0, 12);
+  await env.DB.prepare(
+    'INSERT INTO group_invites (group_id, code, created_by) VALUES (?, ?, ?)'
+  ).bind(groupId, code, user.id).run();
+
+  return json({ code, url: `${new URL(request.url).origin}/#join/${code}` }, 201);
+}
+
+// 获取群已有邀请码
+async function getGroupInvite(request, env, groupId) {
+  const { error, user } = await requireAuth(request, env);
+  if (error) return error;
+
+  const invite = await env.DB.prepare(
+    "SELECT * FROM group_invites WHERE group_id = ? AND (expires_at IS NULL OR expires_at > ?)"
+  ).bind(groupId, Math.floor(Date.now() / 1000)).first();
+
+  if (!invite) return json({ code: null, url: null });
+  return json({ code: invite.code, url: `${new URL(request.url).origin}/#join/${invite.code}` });
+}
+
+// 通过邀请码获取群信息
+async function getInviteInfo(request, env, code) {
+  const invite = await env.DB.prepare(
+    `SELECT gi.*, g.name, g.description, g.avatar,
+       (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count
+     FROM group_invites gi JOIN groups g ON gi.group_id = g.id
+     WHERE gi.code = ? AND (gi.expires_at IS NULL OR gi.expires_at > ?)`
+  ).bind(code, Math.floor(Date.now() / 1000)).first();
+
+  if (!invite) return json({ error: '邀请链接无效或已过期' }, 404);
+  if (invite.max_uses && invite.uses >= invite.max_uses) {
+    return json({ error: '邀请链接已达到使用上限' }, 410);
+  }
+
+  let isMember = false;
+  const token = getTokenFromRequest(request);
+  if (token) {
+    const session = await env.DB.prepare(
+      'SELECT user_id FROM sessions WHERE token = ? AND expires_at > ?'
+    ).bind(token, Math.floor(Date.now() / 1000)).first();
+    if (session) {
+      const member = await env.DB.prepare(
+        'SELECT id FROM group_members WHERE group_id = ? AND user_id = ?'
+      ).bind(invite.group_id, session.user_id).first();
+      isMember = !!member;
+    }
+  }
+
+  return json({
+    groupId: invite.group_id,
+    name: invite.name,
+    description: invite.description,
+    memberCount: invite.member_count,
+    isMember,
+  });
+}
+
+// 通过邀请码加群
+async function joinGroupByCode(request, env) {
+  const { error, user } = await requireAuth(request, env);
+  if (error) return error;
+
+  const { code } = await request.json();
+  if (!code) return json({ error: '邀请码不能为空' }, 400);
+
+  const invite = await env.DB.prepare(
+    "SELECT * FROM group_invites WHERE code = ? AND (expires_at IS NULL OR expires_at > ?)"
+  ).bind(code, Math.floor(Date.now() / 1000)).first();
+
+  if (!invite) return json({ error: '邀请链接无效或已过期' }, 404);
+  if (invite.max_uses && invite.uses >= invite.max_uses) {
+    return json({ error: '邀请链接已达到使用上限' }, 410);
+  }
+
+  // 检查是否已是成员
+  const existing = await env.DB.prepare(
+    'SELECT id FROM group_members WHERE group_id = ? AND user_id = ?'
+  ).bind(invite.group_id, user.id).first();
+
+  if (existing) return json({ error: '你已经是群成员了', groupId: invite.group_id }, 400);
+
+  // 加入群聊
+  await env.DB.prepare(
+    'INSERT INTO group_members (group_id, user_id) VALUES (?, ?)'
+  ).bind(invite.group_id, user.id).run();
+
+  // 更新使用次数
+  await env.DB.prepare(
+    'UPDATE group_invites SET uses = uses + 1 WHERE id = ?'
+  ).bind(invite.id).run();
+
+  // 通知群成员
+  const hub = getRealtimeHub(env);
+  hub.fetch(new Request('https://internal/notify', {
+    method: 'POST',
+    body: JSON.stringify({
+      type: 'send_to_group', groupId: invite.group_id,
+      data: { type: 'group_member_joined', groupId: invite.group_id, userId: user.id, userName: user.nickname, timestamp: Date.now() }
+    }),
+  })).catch(() => {});
+
+  return json({ success: true, groupId: invite.group_id }, 201);
 }
 
 // ==========================================================
