@@ -1,0 +1,29 @@
+name = "seedchat"
+main = "src/index.js"
+compatibility_date = "2025-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+# 静态资源（前端）
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# D1 数据库
+[[d1_databases]]
+binding = "DB"
+database_name = "seedchat-db"
+database_id = "e4fd944f-774f-4d57-a992-85a72d9e8e3e"
+
+# Durable Objects（实时通讯）
+[[durable_objects.bindings]]
+name = "REALTIME_HUB"
+class_name = "RealtimeHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RealtimeHub"]
+
+# 环境变量
+[vars]
+IMGBB_KEY = "c214b99b85c8c15f807a7fbccf1aadf4"
+SITE_NAME = "SEEDCHAT"
