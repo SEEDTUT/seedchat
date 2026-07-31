@@ -123,10 +123,13 @@ export async function uploadToImgbb(base64Image, env) {
   };
 }
 
-// 分页参数
+// 分页参数（防 NaN：parseInt 可能返回 NaN，Math.max(1, NaN) 仍为 NaN）
 export function getPagination(request) {
   const url = new URL(request.url);
-  const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
-  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '10')));
-  return { page, limit, offset: (page - 1) * limit };
+  const rawPage = parseInt(url.searchParams.get('page') || '1');
+  const rawLimit = parseInt(url.searchParams.get('limit') || '10');
+  const page = (Number.isNaN(rawPage) || rawPage < 1) ? 1 : rawPage;
+  const limit = (Number.isNaN(rawLimit) || rawLimit < 1) ? 10 : Math.min(50, rawLimit);
+  const offset = (page - 1) * limit;
+  return { page, limit, offset: offset | 0 };
 }

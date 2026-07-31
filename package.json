@@ -10,8 +10,8 @@
     "db:migrate": "wrangler d1 execute seedchat-db --file=migrations/0001_init.sql",
     "db:migrate:remote": "wrangler d1 execute seedchat-db --remote --file=migrations/0001_init.sql"
   },
-  "dependencies": {},
   "devDependencies": {
+    "esbuild": "^0.28.1",
     "wrangler": "^4.118.0"
   }
 }

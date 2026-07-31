@@ -311,15 +311,18 @@ async function listPosts(request, env) {
   `;
   let params = [];
   if (authorId) {
-    query += ' WHERE p.user_id = ?';
-    params.push(parseInt(authorId));
+    const aid = parseInt(authorId);
+    if (!Number.isNaN(aid)) {
+      query += ' WHERE p.user_id = ?';
+      params.push(aid);
+    }
   }
   query += ' ORDER BY p.pinned DESC, p.created_at DESC LIMIT ? OFFSET ?';
   params.push(limit, offset);
 
   const result = await env.DB.prepare(query).bind(...params).all();
-  const total = await env.DB.prepare('SELECT COUNT(*) as c FROM posts' + (authorId ? ' WHERE user_id = ?' : ''))
-    .bind(...(authorId ? [parseInt(authorId)] : [])).first();
+  const total = await env.DB.prepare('SELECT COUNT(*) as c FROM posts' + (authorId && !Number.isNaN(parseInt(authorId)) ? ' WHERE user_id = ?' : ''))
+    .bind(...(authorId && !Number.isNaN(parseInt(authorId)) ? [parseInt(authorId)] : [])).first();
 
   // 检查当前用户是否点赞
   let currentUser = null;
@@ -372,6 +375,7 @@ async function createPost(request, env) {
 }
 
 async function getPost(request, env, postId) {
+  if (Number.isNaN(postId)) return json({ error: '无效的帖子ID' }, 400);
   // 增加浏览量
   await env.DB.prepare('UPDATE posts SET views = views + 1 WHERE id = ?').bind(postId).run();
 

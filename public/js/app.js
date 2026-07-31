@@ -75,7 +75,7 @@ const api = {
   getMe: () => api.req('/auth/me'),
   searchUsers: q => api.req(`/users/search?q=${encodeURIComponent(q)}`),
   getUser: id => api.req(`/users/${id}`),
-  getPosts: (p, a) => api.req(`/posts?page=${p}${a ? `&author_id=${a}` : ''}`),
+  getPosts: (p, a) => api.req(`/posts?page=${p || 1}${a ? `&author_id=${a}` : ''}`),
   getPost: id => api.req(`/posts/${id}`),
   createPost: d => api.req('/posts', { method: 'POST', body: JSON.stringify(d) }),
   editPost: (id, d) => api.req(`/posts/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
@@ -342,25 +342,23 @@ async function doLogout() {
 function renderApp() {
   document.getElementById('app').innerHTML = `
     <div class="layout">
-      <div class="nav-overlay" id="nav-overlay" onclick="toggleSidebar(false)"></div>
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-          <div class="sidebar-logo">S</div>
-          <span class="sidebar-title">SEEDCHAT</span>
-        </div>
-        <nav class="sidebar-nav" id="desktop-nav"></nav>
-        <div class="sidebar-footer">
-          <div class="user-card" onclick="navigate('settings')">
-            ${avatarHtml(S.user)}
-            <div class="flex-1" style="min-width:0">
-              <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(S.user.nickname)}</div>
-              <div class="text-xs text-muted flex items-center gap-2"><span class="status-dot online"></span> 在线</div>
-            </div>
-          </div>
-        </div>
-      </aside>
       <main class="main" id="main-content"></main>
-      <nav class="mobile-nav" id="mobile-nav"></nav>
+    </div>
+    <!-- 悬浮球导航 -->
+    <div class="fab-overlay" id="fab-overlay" onclick="toggleFab(false)"></div>
+    <button class="fab" id="fab" onclick="toggleFab()" aria-label="菜单">
+      ${I.plus}
+      <span class="fab-badge hidden" id="fab-notif">0</span>
+    </button>
+    <div class="fab-menu" id="fab-menu">
+      <div class="fab-menu-header" onclick="navigate('settings'); toggleFab(false)">
+        ${avatarHtml(S.user)}
+        <div style="min-width:0;flex:1">
+          <div class="fab-menu-name">${esc(S.user.nickname)}</div>
+          <div class="fab-menu-status"><span class="status-dot online"></span> 在线</div>
+        </div>
+      </div>
+      <div id="fab-nav"></div>
     </div>`;
 
   // 导航项
@@ -369,21 +367,14 @@ function renderApp() {
     { view: 'messages', label: '私信', icon: I.chat },
     { view: 'groups', label: '群聊', icon: I.users },
     { view: 'friends', label: '好友', icon: I.userPlus },
-    { view: 'notifications', label: '通知', icon: I.bell, badge: 'notif-badge' },
+    { view: 'notifications', label: '通知', icon: I.bell, badge: 'fab-notif' },
     { view: 'settings', label: '设置', icon: I.settings },
   ];
 
-  document.getElementById('desktop-nav').innerHTML = navItems.map(n => `
-    <div class="nav-item ${n.view === S.view ? 'active' : ''}" data-view="${n.view}" onclick="navigate('${n.view}')">
+  document.getElementById('fab-nav').innerHTML = navItems.map(n => `
+    <div class="fab-menu-item ${n.view === S.view ? 'active' : ''}" data-view="${n.view}" onclick="navigate('${n.view}'); toggleFab(false)">
       ${n.icon}<span>${n.label}</span>
       ${n.badge ? `<span class="nav-badge hidden" id="${n.badge}">0</span>` : ''}
-    </div>`).join('');
-
-  // 移动端导航（只显示前5个）
-  document.getElementById('mobile-nav').innerHTML = navItems.slice(0, 5).map(n => `
-    <div class="mobile-nav-item ${n.view === S.view ? 'active' : ''}" data-view="${n.view}" onclick="navigate('${n.view}')">
-      ${n.icon}<span>${n.label}</span>
-      ${n.badge ? `<span class="nav-badge hidden" id="${n.badge}-m" style="position:absolute;top:4px;right:50%;margin-right:-24px">0</span>` : ''}
     </div>`).join('');
 
   navigate('forum');
@@ -391,26 +382,25 @@ function renderApp() {
 
 function navigate(v) {
   S.view = v;
-  toggleSidebar(false);
+  toggleFab(false);
   document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === v));
   ({ forum: renderForum, messages: renderMessages, groups: renderGroups, friends: renderFriends,
      notifications: renderNotifications, settings: renderSettings })[v]?.();
 }
 
-function toggleSidebar(open) {
-  const sb = document.getElementById('sidebar');
-  const ov = document.getElementById('nav-overlay');
-  if (open === undefined) open = !sb.classList.contains('open');
-  sb.classList.toggle('open', open);
-  ov.classList.toggle('show', open);
+function toggleFab(open) {
+  const fab = document.getElementById('fab');
+  const menu = document.getElementById('fab-menu');
+  const overlay = document.getElementById('fab-overlay');
+  if (open === undefined) open = !fab.classList.contains('open');
+  fab.classList.toggle('open', open);
+  menu.classList.toggle('open', open);
+  overlay.classList.toggle('open', open);
 }
 
 function pageHeader(title, actions = '') {
-  return `<div class="page-header">
-    <div class="flex items-center gap-3">
-      <button class="btn btn-ghost btn-icon mobile-header-btn" onclick="toggleSidebar(true)">${I.menu}</button>
-      <span class="page-title">${title}</span>
-    </div>
+  return `<div class="page-inline-header">
+    <span class="page-inline-title">${title}</span>
     <div class="flex gap-2">${actions}</div>
   </div>`;
 }
@@ -418,7 +408,7 @@ function pageHeader(title, actions = '') {
 // ═══ 论坛 ═══
 async function renderForum() {
   document.getElementById('main-content').innerHTML = `
-    ${pageHeader('论坛', `<button class="btn btn-primary btn-sm" onclick="showCreatePost()">${I.plus}<span class="hidden" style="display:inline">发帖</span><span>发帖</span></button>`)}
+    ${pageHeader('论坛', `<button class="btn btn-primary btn-sm" onclick="showCreatePost()">${I.plus}<span>发帖</span></button>`)}
     <div class="page-body" id="forum-body">${Array(3).fill('<div class="skeleton skeleton-card"></div>').join('')}</div>`;
   try {
     const d = await api.getPosts();
@@ -1024,7 +1014,7 @@ async function loadNotifs() {
   try {
     const d = await api.getNotifications();
     S.notifUnread = d.unread;
-    ['notif-badge', 'notif-badge-m'].forEach(id => {
+    ['fab-notif'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { if (d.unread > 0) { el.textContent = d.unread; el.classList.remove('hidden'); } else el.classList.add('hidden'); }
     });
